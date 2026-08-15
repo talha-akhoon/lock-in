@@ -124,8 +124,8 @@ when you run Docker.
 
 ### 2. Git hooks
 
-Install once so Ruff and oxlint run before each commit (needs `uv` and `npm`
-on the host):
+Install once so Ruff, oxlint, and `tsc` run before each commit (needs `uv`
+and `npm` on the host):
 
 ```bash
 uvx pre-commit install
@@ -221,6 +221,7 @@ cd frontend
 npm ci
 npm run test
 npm run lint
+npm run typecheck
 npm run build
 ```
 

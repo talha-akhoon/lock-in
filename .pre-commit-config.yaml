@@ -17,3 +17,9 @@ repos:
         files: ^frontend/.*\.(ts|tsx|js|jsx)$
         entry: npm --prefix frontend run lint
         pass_filenames: false
+      - id: tsc
+        name: tsc
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        entry: npm --prefix frontend run typecheck
+        pass_filenames: false

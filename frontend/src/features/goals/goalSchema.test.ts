@@ -5,15 +5,16 @@ import {
   goalFormSchema,
   toGoalInput,
   usesNumericFields,
+  type GoalFormValues,
 } from './goalSchema'
 
-const base = {
+const base: GoalFormValues = {
   ...emptyGoalForm('PHYSICAL'),
   title: 'Deadlift 120kg',
-  tracking_type: 'MILESTONE' as const,
+  tracking_type: 'MILESTONE',
 }
 
-function parse(overrides: Partial<typeof base>) {
+function parse(overrides: Partial<GoalFormValues>) {
   return goalFormSchema.safeParse({ ...base, ...overrides })
 }
 
