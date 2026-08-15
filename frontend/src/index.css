@@ -422,6 +422,7 @@ textarea { min-height: 85px; resize: vertical; }
 .settings-identity span { color: var(--muted); font-size: 12px; }
 .admin-section.warn { border-color: #4a4028; }
 .admin-section h2 { display: flex; align-items: center; gap: 10px; font-size: 19px; }
+.admin-section h3 { margin: 18px 0 8px; font-size: 15px; }
 .member-row { grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 14px; }
 .member-row > .grow { display: flex; flex-direction: column; gap: 2px; }
 .member-row small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }

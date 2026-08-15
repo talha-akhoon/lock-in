@@ -10,10 +10,10 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
-      '/api': {
-        target: apiTarget,
-        changeOrigin: true,
-      },
+      '/api': { target: apiTarget, changeOrigin: true },
+      '/mcp': { target: apiTarget, changeOrigin: true },
+      '/oauth': { target: apiTarget, changeOrigin: true },
+      '/.well-known': { target: apiTarget, changeOrigin: true },
     },
   },
 })

@@ -24,7 +24,18 @@ def test_a_client_side_route_is_served_the_app_shell(anon) -> None:
     assert "text/html" in response.headers["content-type"]
 
 
-@pytest.mark.parametrize("path", ["/api", "/api/", "/api/v1/nope", "/api/v2/goals"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api",
+        "/api/",
+        "/api/v1/nope",
+        "/api/v2/goals",
+        "/oauth",
+        "/oauth/nope",
+        "/.well-known/nope",
+    ],
+)
 def test_an_unknown_api_route_is_a_404_not_the_app_shell(anon, path) -> None:
     response = anon.get(path)
 

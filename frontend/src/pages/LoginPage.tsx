@@ -1,19 +1,28 @@
 import { GoogleLogin } from '@react-oauth/google'
 import { CalendarCheck, LockKeyhole, Target, Users } from 'lucide-react'
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, useGoogleSignIn } from '../hooks/queries'
 import { Loading } from '../components/primitives'
+import { safeOAuthNext } from '../lib/oauth'
 
 export function LoginPage() {
   const auth = useAuth()
   const signIn = useGoogleSignIn()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [error, setError] = useState('')
   const configured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)
+  const next = safeOAuthNext(params.get('next'))
 
   if (auth.isLoading) return <Loading label="Checking your session" />
-  if (auth.data) return <Navigate to="/dashboard" replace />
+  if (auth.data) {
+    if (next) {
+      window.location.assign(next)
+      return <Loading label="Continuing authorization" />
+    }
+    return <Navigate to="/dashboard" replace />
+  }
 
   return (
     <main className="login-page">
@@ -66,7 +75,8 @@ export function LoginPage() {
               }
               try {
                 await signIn.mutateAsync(credential)
-                navigate('/dashboard')
+                if (next) window.location.assign(next)
+                else navigate('/dashboard')
               } catch (reason) {
                 setError((reason as Error).message)
               }

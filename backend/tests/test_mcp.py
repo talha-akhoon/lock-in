@@ -90,7 +90,11 @@ def test_bearer_skips_csrf_on_a_checkin(team_setup, app, make_goal) -> None:
 
 def test_mcp_http_requires_a_bearer_token(app) -> None:
     with TestClient(app) as client:
-        assert client.post("/mcp").status_code == 401
+        response = client.post("/mcp")
+        assert response.status_code == 401
+        challenge = response.headers["www-authenticate"]
+        assert 'error="invalid_token"' in challenge
+        assert "resource_metadata=" in challenge
         assert (
             client.post(
                 "/mcp", headers={"Authorization": "Bearer lin_nope"}

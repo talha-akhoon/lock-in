@@ -33,11 +33,12 @@ the commitment, the daily record, and the reckoning at the end.
    that snapshot.
 7. **Check in.** Each day you update the goals that moved. Streaks and a
    heatmap use the challenge's own timezone.
-8. **Optional: connect your own LLM.** Settings issues a personal token for
-   Claude, Cursor or similar. The model can read your goals, see teammates'
-   team-visible progress, and log today's check-in. LockIn stays the source of
-   truth. Connecting shares your view of the team with that LLM provider.
-   Private goals stay in LockIn.
+8. **Optional: connect your own LLM.** ChatGPT custom connectors use OAuth:
+   paste the `/mcp` URL, choose OAuth, sign in to LockIn and approve. Cursor
+   and Claude take a personal token from Settings. The model can read your
+   goals, see teammates' team-visible progress, and log today's check-in.
+   LockIn stays the source of truth. Connecting shares your view of the team
+   with that LLM provider. Private goals stay in LockIn.
 9. **Finish.** When the end date passes, required goals are scored. Anyone who
    fell short owes the forfeit to each other member. The results screen lists
    who pays whom.
@@ -72,17 +73,23 @@ the commitment, the daily record, and the reckoning at the end.
 
 ### MCP
 
-A remote MCP endpoint at `/mcp` so a member can connect their own LLM (Claude,
-Cursor, and similar) with a personal token from Settings.
+A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
 
+- **ChatGPT** — custom connectors only support no auth, OAuth, or mixed auth.
+  LockIn uses OAuth. In ChatGPT, add a connector with `https://your-origin/mcp`
+  and choose OAuth. You sign in to LockIn and approve; ChatGPT never sees a
+  pasted token.
+- **Cursor and Claude** — Settings issues a personal token. Paste the JSON
+  config (URL plus `Authorization: Bearer`). The token is shown once.
 - Read your own goals and progress, including private ones.
 - Read the team standings, a teammate's profile, and the activity feed — the
   same privacy as the app. Private titles, descriptions, targets and values
   are never sent. Team-visible teammate goals are included on purpose, so the
   model can compare and motivate.
 - Log today's check-in. The model cannot create goals or edit locked targets.
-- The token is shown once. Revoke it from Settings if it leaks. Connecting
-  shares that member's view of the team with their LLM provider.
+- Revoke a token from Settings if it leaks (OAuth connections appear as
+  “ChatGPT”). Connecting shares that member's view of the team with their LLM
+  provider.
 
 ### Team and admin
 
@@ -118,6 +125,9 @@ Edit `.env`:
 - `CHALLENGE_TIMEZONE` — default zone for new challenges (`Europe/London` is
   fine). Check-in days and streaks use the *challenge's* zone, not the
   server's.
+- `PUBLIC_ORIGIN` — optional locally. The public HTTPS origin ChatGPT should
+  use for OAuth metadata (for example a tunnel URL). Empty means derive it
+  from `Host` / `X-Forwarded-*`.
 
 `DATABASE_URL` in `.env.example` is for the Compose network. Leave it as-is
 when you run Docker.
@@ -236,7 +246,8 @@ backend/app/
   api/v1/routes/          one module per resource; handlers stay thin
   api/v1/serializers.py   response shaping, including the privacy boundary
   services/               goals, check-ins, challenges, teams, notifications,
-                          audit, progress, clock, MCP tokens
+                          audit, progress, clock, MCP tokens, OAuth
+  api/oauth.py            ChatGPT MCP connector OAuth (well-known, authorize, token)
   mcp/                    Streamable HTTP tools at /mcp; same privacy as the app
   models/domain.py        SQLAlchemy models
   dependencies/           auth, membership, CSRF
@@ -293,7 +304,7 @@ gcloud run deploy lockin \
   --min-instances 0 \
   --max-instances 1 \
   --memory 512Mi \
-  --set-env-vars "ENVIRONMENT=production,SECURE_COOKIES=true,FRONTEND_DIST=/frontend/dist,CHALLENGE_TIMEZONE=Europe/London" \
+  --set-env-vars "ENVIRONMENT=production,SECURE_COOKIES=true,FRONTEND_DIST=/frontend/dist,CHALLENGE_TIMEZONE=Europe/London,PUBLIC_ORIGIN=https://lockin.talhaakhoon.dev" \
   --set-secrets "DATABASE_URL=lockin-database-url:latest,SECRET_KEY=lockin-secret-key:latest,GOOGLE_CLIENT_ID=lockin-google-client-id:latest"
 ```
 
@@ -412,6 +423,8 @@ starts. With a cash forfeit on the line, an untested backup does not count.
 - Admin actions require an admin membership and write an audit row that names
   the actor.
 - State-changing requests need a double-submit CSRF token.
+- MCP access is a revocable personal token. ChatGPT obtains one through
+  OAuth (PKCE); Cursor and Claude paste one from Settings.
 - Committed goals are immutable except visibility and sort order, unless an
   admin override reopens them (audited).
 

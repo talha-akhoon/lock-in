@@ -130,6 +130,36 @@ class McpToken(TimestampMixin, Base):
     user: Mapped[User] = relationship()
 
 
+class OAuthClient(TimestampMixin, Base):
+    """Client registered through OAuth dynamic client registration."""
+
+    __tablename__ = "oauth_clients"
+
+    client_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    client_name: Mapped[str | None] = mapped_column(String(255))
+    redirect_uris: Mapped[list[str]] = mapped_column(JSON)
+    token_endpoint_auth_method: Mapped[str] = mapped_column(String(64), default="none")
+
+
+class OAuthAuthCode(TimestampMixin, Base):
+    """One-time authorization code for the MCP OAuth + PKCE flow."""
+
+    __tablename__ = "oauth_auth_codes"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    code_hash: Mapped[str] = mapped_column(String(255), unique=True)
+    client_id: Mapped[str] = mapped_column(String(512), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    redirect_uri: Mapped[str] = mapped_column(String(2048))
+    code_challenge: Mapped[str] = mapped_column(String(128))
+    resource: Mapped[str] = mapped_column(String(512))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    user: Mapped[User] = relationship()
+
+
 class Team(TimestampMixin, Base):
     __tablename__ = "teams"
 

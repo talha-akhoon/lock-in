@@ -37,7 +37,7 @@ export function SettingsPage() {
   const revoke = useRevokeMcpToken()
   const [name, setName] = useState('Claude')
   const [issued, setIssued] = useState<string | null>(null)
-  const [copied, setCopied] = useState<'token' | 'config' | null>(null)
+  const [copied, setCopied] = useState<'token' | 'config' | 'url' | null>(null)
   const [error, setError] = useState('')
   const [revoking, setRevoking] = useState<McpToken | null>(null)
 
@@ -92,10 +92,32 @@ export function SettingsPage() {
       <section className="card admin-section warn">
         <h2>Connect your LLM</h2>
         <p className="hint">
-          A personal token lets Claude, Cursor or ChatGPT read your goals, see teammates&apos;
-          team-visible progress, and log today&apos;s check-in. Connecting shares that view —
-          including teammates&apos; team-visible goals — with your LLM provider. Private goals stay
-          in LockIn. Revoke the token if the secret leaks.
+          Connecting shares your view — including teammates&apos; team-visible goals — with your LLM
+          provider. Private goals stay in LockIn. The model can read your goals, see team-visible
+          progress, and log today&apos;s check-in.
+        </p>
+        <h3>ChatGPT</h3>
+        <p className="hint">
+          ChatGPT custom connectors cannot use a pasted token. Add a connector, paste the MCP URL
+          below, and choose OAuth. You will sign in to LockIn and approve access. The token ChatGPT
+          receives appears below as “ChatGPT” — revoke it if it leaks.
+        </p>
+        <div className="invite-code mcp-secret">
+          <b className="mono">{`${window.location.origin}/mcp`}</b>
+          <button
+            className="ghost"
+            onClick={async () => {
+              await navigator.clipboard?.writeText(`${window.location.origin}/mcp`)
+              setCopied('url')
+            }}
+          >
+            {copied === 'url' ? <Check /> : <Copy />} {copied === 'url' ? 'Copied' : 'Copy MCP URL'}
+          </button>
+        </div>
+        <h3>Cursor and Claude</h3>
+        <p className="hint">
+          Create a personal token and paste the JSON config into Cursor or Claude Desktop. Revoke
+          the token if the secret leaks.
         </p>
         <div className="form-row">
           <label>

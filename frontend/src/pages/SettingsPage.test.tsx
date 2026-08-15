@@ -35,6 +35,8 @@ describe('settings MCP tokens', () => {
     expect(await screen.findByText('lin_wxyz90secret-value')).toBeInTheDocument()
     expect(screen.getByText(/cannot be shown again/i)).toBeInTheDocument()
     expect(screen.getByText(/teammates. team-visible goals/i)).toBeInTheDocument()
+    expect(screen.getByText(/chatgpt custom connectors/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /copy mcp url/i })).toBeInTheDocument()
     expect(fetchMock.sent('POST /me/mcp-tokens')[0].body).toEqual({ name: 'Claude' })
   })
 

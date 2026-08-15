@@ -64,5 +64,5 @@ jobs:
             --min-instances 0 \
             --max-instances 1 \
             --memory 512Mi \
-            --set-env-vars "ENVIRONMENT=production,SECURE_COOKIES=true,FRONTEND_DIST=/frontend/dist,CHALLENGE_TIMEZONE=Europe/London" \
+            --set-env-vars "ENVIRONMENT=production,SECURE_COOKIES=true,FRONTEND_DIST=/frontend/dist,CHALLENGE_TIMEZONE=Europe/London,PUBLIC_ORIGIN=https://lockin.talhaakhoon.dev" \
             --set-secrets "DATABASE_URL=lockin-database-url:latest,SECRET_KEY=lockin-secret-key:latest,GOOGLE_CLIENT_ID=lockin-google-client-id:latest"

@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.oauth import router as oauth_router
 from app.api.v1.router import router
 from app.config import get_settings
 from app.mcp.server import McpDispatchMiddleware, build_mcp_asgi, gateway, mcp
@@ -33,6 +34,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(router, prefix="/api/v1")
+app.include_router(oauth_router)
 app.add_middleware(McpDispatchMiddleware)
 
 # In production these are unregistered, so without this the SPA catch-all would
@@ -59,7 +61,8 @@ def spa(path: str) -> FileResponse:
     the app shell: a caller asking for a route that does not exist should be told
     so, not handed a page of HTML with a 200 on it.
     """
-    if path.startswith(("api/", "mcp/")) or path in {"api", "mcp"} | SCHEMA_PATHS:
+    reserved = {"api", "mcp", "oauth", ".well-known"} | SCHEMA_PATHS
+    if path.startswith(("api/", "mcp/", "oauth/", ".well-known/")) or path in reserved:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
     index = dist / "index.html"
     if not index.exists():

@@ -20,6 +20,7 @@ from app.mcp.context import current_db, current_user
 from app.mcp.jsonutil import json_safe
 from app.schemas.domain import CheckinUpdate
 from app.services.mcp_tokens import authenticate as authenticate_mcp_token
+from app.services.oauth import origin_from_headers, www_authenticate
 
 INSTRUCTIONS = """\
 You are connected to LockIn, a private team accountability app.
@@ -187,7 +188,12 @@ class McpGateway:
         }
         authorization = headers.get("authorization", "")
         if not authorization.lower().startswith("bearer "):
-            await _send_json(send, 401, "Not authenticated")
+            await _send_json(
+                send,
+                401,
+                "Not authenticated",
+                extra_headers=_auth_challenge(headers),
+            )
             return
         session: Session = SessionLocal()
         user_token = None
@@ -197,7 +203,12 @@ class McpGateway:
                 session, authorization.split(" ", 1)[1].strip()
             )
             if user is None:
-                await _send_json(send, 401, "Invalid token")
+                await _send_json(
+                    send,
+                    401,
+                    "Invalid token",
+                    extra_headers=_auth_challenge(headers),
+                )
                 return
             user_token = current_user.set(user)
             db_token = current_db.set(session)
@@ -217,7 +228,19 @@ class McpGateway:
             session.close()
 
 
-async def _send_json(send, status_code: int, detail: str) -> None:
+def _auth_challenge(headers: dict[str, str]) -> list[tuple[bytes, bytes]]:
+    return [
+        (b"www-authenticate", www_authenticate(origin_from_headers(headers)).encode()),
+        (b"access-control-allow-origin", b"*"),
+    ]
+
+
+async def _send_json(
+    send,
+    status_code: int,
+    detail: str,
+    extra_headers: list[tuple[bytes, bytes]] | None = None,
+) -> None:
     body = json.dumps({"detail": detail}).encode()
     await send(
         {
@@ -226,6 +249,7 @@ async def _send_json(send, status_code: int, detail: str) -> None:
             "headers": [
                 (b"content-type", b"application/json"),
                 (b"content-length", str(len(body)).encode()),
+                *(extra_headers or []),
             ],
         }
     )

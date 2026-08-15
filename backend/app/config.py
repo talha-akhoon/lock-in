@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # Comma-separated Host values the MCP endpoint accepts, or * to skip the
     # DNS-rebinding check. Bearer auth is the real gate.
     mcp_allowed_hosts: str = "*"
+    # Canonical public origin for OAuth issuer/resource metadata. Empty means
+    # derive it from the incoming Host / X-Forwarded-* headers.
+    public_origin: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
