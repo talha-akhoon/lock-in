@@ -1,0 +1,14 @@
+---
+description: Keep README.md in lockstep with user-facing product changes
+alwaysApply: true
+---
+
+# README stays current
+
+`README.md` is the open-source front door. When you add, change, or remove a
+user-facing feature, screen, tracking rule, setup step, or deploy assumption,
+update `README.md` in the same change — especially **How it works** and
+**Features**.
+
+Help copy in `frontend/src/lib/help.ts` must stay consistent with that feature
+list. Do not leave the README describing behaviour the code no longer has.

@@ -1,0 +1,1 @@
+"""LockIn backend application."""

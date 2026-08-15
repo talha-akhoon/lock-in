@@ -1,0 +1,14 @@
+name = "lockin-proxy"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# The Cloud Run service hostname, without a scheme.
+# Find it with: gcloud run services describe lockin --format 'value(status.url)'
+[vars]
+ORIGIN_HOST = "REPLACE-WITH-YOUR-SERVICE.us-central1.run.app"
+
+# The custom domain served by this Worker. The zone must already be on
+# Cloudflare with its nameservers delegated.
+[[routes]]
+pattern = "lockin.example.com"
+custom_domain = true
