@@ -308,7 +308,13 @@ def test_today_is_allowed_before_the_challenge_starts(
 
 
 def test_a_starting_point_becomes_the_baseline(
-    make_user, make_team, make_challenge, make_participant, make_goal, client_factory, db
+    make_user,
+    make_team,
+    make_challenge,
+    make_participant,
+    make_goal,
+    client_factory,
+    db,
 ) -> None:
     from app.models.domain import ChallengeStatus
     from app.services.clock import challenge_today
