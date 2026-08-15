@@ -9,12 +9,11 @@ brackets>`.
 
 ## What the backup is
 
-`.github/workflows/backup.yml` runs weekly and on demand. It produces one
-artifact per run, named `lockin-backup-<run-id>`, containing a single file:
+`.github/workflows/backup.yml` runs weekly and on demand. Each run writes
+`lockin-<YYYY-MM-DD>.sql.gz.enc` to two places:
 
-```
-lockin-<YYYY-MM-DD>.sql.gz.enc
-```
+- a GitHub Actions artifact named `lockin-backup-<run-id>` (kept 90 days)
+- `gs://lockin-505614-backups/` (kept until you delete it)
 
 That is a plain `pg_dump` (SQL format, no owners, no ACLs), gzipped, then
 encrypted with AES-256-CBC using PBKDF2 at 100,000 iterations.
@@ -30,11 +29,22 @@ Two secrets are required, and neither may be the value the application uses:
 the URL must not carry the driver suffix. The workflow fails loudly rather than
 silently producing an empty file if it does.
 
-## Step 1 — Get the artifact
+## Step 1 — Get the archive
+
+From GitHub:
 
 ```bash
 gh run list --workflow "Weekly database backup" --limit 5
 gh run download <run-id> --dir ./restore
+cd restore
+ls -lh
+```
+
+Or from GCS (survives the 90-day artifact window):
+
+```bash
+gcloud storage ls gs://lockin-505614-backups/
+gcloud storage cp gs://lockin-505614-backups/lockin-<YYYY-MM-DD>.sql.gz.enc ./restore/
 cd restore
 ls -lh
 ```

@@ -242,13 +242,18 @@ of a custom domain. Details below; you do not need them to develop locally.
 
 ### Google Cloud Run
 
+Every push to `main` that passes CI is built and deployed by
+`.github/workflows/deploy.yml`. Manual first-time or emergency deploys:
+
 ```bash
 gcloud builds submit \
   --config cloudbuild.yaml \
-  --substitutions "_GOOGLE_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID,_IMAGE=us-central1-docker.pkg.dev/PROJECT_ID/lockin/app:latest"
+  --service-account=projects/lockin-505614/serviceAccounts/lockin-run@lockin-505614.iam.gserviceaccount.com \
+  --substitutions "_GOOGLE_CLIENT_ID=YOUR_PUBLIC_CLIENT_ID,_IMAGE=europe-west2-docker.pkg.dev/lockin-505614/lockin/app:latest"
 gcloud run deploy lockin \
-  --image "us-central1-docker.pkg.dev/PROJECT_ID/lockin/app:latest" \
-  --region us-central1 \
+  --image "europe-west2-docker.pkg.dev/lockin-505614/lockin/app:latest" \
+  --region europe-west2 \
+  --service-account=lockin-run@lockin-505614.iam.gserviceaccount.com \
   --allow-unauthenticated \
   --min-instances 0 \
   --max-instances 1 \
@@ -261,13 +266,93 @@ gcloud run deploy lockin \
 Run Job before raising that limit. Add the `run.app` URL and the custom domain
 to the OAuth client's authorised origins.
 
+### GitHub Actions (CI, deploy, backups)
+
+CI (`.github/workflows/ci.yml`) runs on every push and pull request. After CI
+succeeds on `main`, Deploy builds the production image, pushes it to Artifact
+Registry, updates Cloud Run, and deploys the Cloudflare Worker.
+
+Create a deploy identity once. The org blocks service-account JSON keys
+(`iam.disableServiceAccountKeyCreation`), so GitHub impersonates
+`lockin-github` through Workload Identity Federation — no key file.
+Do not reuse `lockin-run` for this; that account is what the running service
+uses to read production secrets. Skip any `create` command that says the
+resource already exists.
+
+```bash
+gcloud iam service-accounts create lockin-github \
+  --project=lockin-505614 \
+  --display-name="LockIn GitHub Actions"
+
+gcloud artifacts repositories add-iam-policy-binding lockin \
+  --project=lockin-505614 \
+  --location=europe-west2 \
+  --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding lockin-505614 \
+  --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+gcloud iam service-accounts add-iam-policy-binding \
+  lockin-run@lockin-505614.iam.gserviceaccount.com \
+  --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+
+gcloud storage buckets create gs://lockin-505614-backups \
+  --project=lockin-505614 \
+  --location=europe-west2 \
+  --uniform-bucket-level-access
+
+gcloud storage buckets add-iam-policy-binding gs://lockin-505614-backups \
+  --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin"
+
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com \
+  --project=lockin-505614
+
+gcloud iam workload-identity-pools create github \
+  --project=lockin-505614 \
+  --location=global \
+  --display-name="GitHub Actions"
+
+gcloud iam workload-identity-pools providers create-oidc github \
+  --project=lockin-505614 \
+  --location=global \
+  --workload-identity-pool=github \
+  --display-name="GitHub" \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --attribute-condition="assertion.repository=='talha-akhoon/lock-in'"
+
+gcloud iam service-accounts add-iam-policy-binding \
+  lockin-github@lockin-505614.iam.gserviceaccount.com \
+  --project=lockin-505614 \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/979991728317/locations/global/workloadIdentityPools/github/attribute.repository/talha-akhoon/lock-in"
+```
+
+No `GCP_SA_KEY` secret. Repository secrets (GitHub → Settings → Secrets and
+variables → Actions — `gh` is not required):
+
+| Secret | Used by | Value |
+| --- | --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Deploy | Token with Workers edit on the zone |
+| `CLOUDFLARE_ACCOUNT_ID` | Deploy | Cloudflare account ID |
+| `BACKUP_DATABASE_URL` | Backups | Neon **direct** `postgresql://…?sslmode=require` |
+| `BACKUP_ENCRYPTION_KEY` | Backups | Long passphrase also stored offline |
+
+`CLOUDFLARE_*` is optional: without it, Cloud Run still deploys and the Worker
+job is skipped. After changing secrets, run **Deploy** and **Weekly database
+backup** from the Actions tab once to prove both paths.
+
 ### Cloudflare custom domain
 
-Point the domain's nameservers at Cloudflare, then deploy `infra/cloudflare/`:
+Point the domain's nameservers at Cloudflare, set `ORIGIN_HOST` and the route
+in `infra/cloudflare/wrangler.toml`, then either push to `main` or:
 
 ```bash
 cd infra/cloudflare
-# Set ORIGIN_HOST and the route pattern in wrangler.toml first.
 npx wrangler deploy
 ```
 
@@ -276,12 +361,12 @@ an explicit cookie domain.
 
 ### Backups
 
-`.github/workflows/backup.yml` dumps weekly, verifies the archive decrypts, and
-keeps it for 90 days. Secrets:
+`.github/workflows/backup.yml` dumps weekly (and on demand), verifies the
+archive decrypts, keeps a copy as a 90-day Actions artifact, and copies it to
+`gs://lockin-505614-backups`.
 
-- `BACKUP_DATABASE_URL` — Neon's **direct** `postgresql://` URL. `pg_dump`
-  rejects the `+psycopg` suffix, so this is not `DATABASE_URL`.
-- `BACKUP_ENCRYPTION_KEY` — a long passphrase stored outside GitHub.
+`BACKUP_DATABASE_URL` is not the app's `DATABASE_URL`: `pg_dump` rejects the
+`+psycopg` driver suffix, so store Neon's **direct** `postgresql://` string.
 
 Read `docs/restore-runbook.md` and run the drill before a real challenge
 starts. With a cash forfeit on the line, an untested backup does not count.

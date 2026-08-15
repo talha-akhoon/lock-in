@@ -5,16 +5,40 @@ on:
     - cron: "17 3 * * 0"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
+      - name: Require backup secrets
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${BACKUP_DATABASE_URL}" ]; then
+            echo "BACKUP_DATABASE_URL is not set." >&2
+            echo "Use Neon's direct (non-pooled) postgresql:// URL with ?sslmode=require." >&2
+            missing=1
+          fi
+          if [ -z "${BACKUP_ENCRYPTION_KEY}" ]; then
+            echo "BACKUP_ENCRYPTION_KEY is not set." >&2
+            echo "Store a long passphrase outside GitHub as well as in this secret." >&2
+            missing=1
+          fi
+          exit "${missing}"
+
       - name: Install PostgreSQL client
         # Must match the server's major version, otherwise pg_dump refuses to run.
         run: |
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-            | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+            | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
 
@@ -27,10 +51,6 @@ jobs:
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${BACKUP_DATABASE_URL}" ]; then
-            echo "BACKUP_DATABASE_URL is not set" >&2
-            exit 1
-          fi
           case "${BACKUP_DATABASE_URL}" in
             postgresql+*|postgres+*)
               echo "BACKUP_DATABASE_URL still carries a driver suffix (postgresql+psycopg://)." >&2
@@ -40,6 +60,7 @@ jobs:
           esac
 
           file="lockin-$(date -u +%Y-%m-%d).sql.gz.enc"
+          echo "BACKUP_FILE=${file}" >> "${GITHUB_ENV}"
           pg_dump "${BACKUP_DATABASE_URL}" --no-owner --no-acl \
             | gzip \
             | openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 \
@@ -61,15 +82,28 @@ jobs:
           set -euo pipefail
           # A backup nobody can open is not a backup.
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
-            -pass env:BACKUP_ENCRYPTION_KEY -in ./*.sql.gz.enc \
+            -pass env:BACKUP_ENCRYPTION_KEY -in "${BACKUP_FILE}" \
             | gunzip \
             | head -n 40 \
             | grep -q "PostgreSQL database dump"
           echo "Archive decrypts and contains a dump header."
 
-      - name: Upload encrypted backup
+      - name: Upload encrypted backup to GitHub
         uses: actions/upload-artifact@v4
         with:
           name: lockin-backup-${{ github.run_id }}
           path: "*.sql.gz.enc"
           retention-days: 90
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/979991728317/locations/global/workloadIdentityPools/github/providers/github
+          service_account: lockin-github@lockin-505614.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Copy archive to gs://lockin-505614-backups
+        run: |
+          set -euo pipefail
+          gsutil cp "${BACKUP_FILE}" "gs://lockin-505614-backups/${BACKUP_FILE}"
+          gsutil ls -l "gs://lockin-505614-backups/${BACKUP_FILE}"
