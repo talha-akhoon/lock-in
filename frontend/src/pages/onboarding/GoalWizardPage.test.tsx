@@ -73,15 +73,16 @@ describe('goal wizard', () => {
 
     await user.selectOptions(screen.getByLabelText(/tracking method/i), 'NUMERIC')
     expect(screen.getByLabelText(/target value/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/starting value/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/where you are now/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/direction/i)).toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText(/tracking method/i), 'COUNT')
     expect(screen.getByLabelText(/target value/i)).toBeInTheDocument()
-    expect(screen.queryByLabelText(/starting value/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/where you are now/i)).toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText(/tracking method/i), 'MANUAL')
     expect(screen.queryByLabelText(/target value/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/where you are now/i)).toBeInTheDocument()
   })
 
   it('blocks a numeric goal with no target before it reaches the API', async () => {

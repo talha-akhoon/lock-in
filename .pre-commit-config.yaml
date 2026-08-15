@@ -1,0 +1,19 @@
+# Fast checks that match CI lint/format. Tests stay in CI — they need Postgres.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: oxlint
+        name: oxlint
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+        entry: npm --prefix frontend run lint
+        pass_filenames: false

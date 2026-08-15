@@ -30,6 +30,8 @@ IMMUTABLE_GOAL_FIELDS = frozenset(
         "tracking_type",
         "baseline_value",
         "target_value",
+        "current_value",
+        "manual_progress_percentage",
         "unit",
         "target_direction",
         "required",

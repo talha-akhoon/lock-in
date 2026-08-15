@@ -11,17 +11,17 @@ export const TRACKING_HELP: Record<
   },
   NUMERIC: {
     title: 'A number moving to a target',
-    body: 'Record the current figure when it changes. Progress is how close that number is to the target, up or down.',
+    body: 'Set where you are now when you add the goal. After that, record the current figure when it changes. Progress is how close that number is to the target, up or down.',
     example: 'Deadlift 180kg, body fat to 12%, £2k monthly revenue.',
   },
   COUNT: {
     title: 'A running total',
-    body: 'Add what you did today. Check-in asks for today’s amount, not a new overall figure. Before the challenge starts, record how many you already have — that becomes the baseline.',
+    body: 'Set how many you already have when you add the goal. After that, check-in asks for today’s amount, not a new overall figure.',
     example: '150 pages of reading, 12 books, 100 gym sessions.',
   },
   MANUAL: {
     title: 'A percentage you set yourself',
-    body: 'There is no automatic measure. Type 0–100 when you think you have moved.',
+    body: 'There is no automatic measure. Set where you are now (0–100) when you add the goal, then update it when you think you have moved.',
     example: 'A side project or habit you can feel but not count cleanly.',
   },
 }

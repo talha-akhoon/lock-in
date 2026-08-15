@@ -30,6 +30,8 @@ function valuesFromGoal(goal: Goal): GoalFormValues {
     // The API pads decimals to four places; a form field should show 120, not 120.0000.
     baseline_value: trimDecimal(goal.baseline_value),
     target_value: trimDecimal(goal.target_value),
+    manual_progress_percentage:
+      goal.manual_progress_percentage == null ? '' : String(goal.manual_progress_percentage),
     unit: goal.unit ?? '',
     target_direction: goal.target_direction ?? 'AT_LEAST',
     visibility: goal.visibility,
@@ -136,18 +138,17 @@ export function GoalForm({
         {showNumbers && (
           <>
             <div className="form-row">
-              {trackingType === 'NUMERIC' && (
-                <label>
-                  Starting value
-                  <input
-                    {...register('baseline_value')}
-                    type="number"
-                    step="any"
-                    disabled={lockedFields}
-                  />
-                  <FieldError message={errors.baseline_value?.message} />
-                </label>
-              )}
+              <label>
+                Where you are now
+                <input
+                  {...register('baseline_value')}
+                  type="number"
+                  step="any"
+                  disabled={lockedFields}
+                  placeholder={trackingType === 'COUNT' ? '0 if you have not started' : '0'}
+                />
+                <FieldError message={errors.baseline_value?.message} />
+              </label>
               <label>
                 Target value
                 <input
@@ -160,6 +161,7 @@ export function GoalForm({
                 <FieldError message={errors.target_value?.message} />
               </label>
             </div>
+            <p className="hint">Progress is measured from where you are now to the target.</p>
             <div className="form-row">
               <label>
                 Unit
@@ -181,6 +183,23 @@ export function GoalForm({
               )}
             </div>
           </>
+        )}
+
+        {trackingType === 'MANUAL' && (
+          <label>
+            Where you are now
+            <input
+              {...register('manual_progress_percentage')}
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              disabled={lockedFields}
+              placeholder="0"
+            />
+            <FieldError message={errors.manual_progress_percentage?.message} />
+            <span className="hint">A percentage from 0 to 100. Progress is measured from here.</span>
+          </label>
         )}
 
         <div className="form-row checks">

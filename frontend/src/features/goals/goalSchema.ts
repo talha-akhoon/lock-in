@@ -15,6 +15,7 @@ export const goalFormSchema = z
     tracking_type: z.enum(TRACKING_TYPES),
     baseline_value: optionalNumber.optional(),
     target_value: optionalNumber.optional(),
+    manual_progress_percentage: optionalNumber.optional(),
     unit: z.string().trim().max(64, 'Unit is too long').optional(),
     target_direction: z.enum(['AT_LEAST', 'AT_MOST']),
     visibility: z.enum(['TEAM', 'PRIVATE']),
@@ -35,6 +36,16 @@ export const goalFormSchema = z
         message: 'Count goals need a target above zero',
       })
     }
+    if (value.tracking_type === 'MANUAL' && value.manual_progress_percentage != null) {
+      const percent = Number(value.manual_progress_percentage)
+      if (percent < 0 || percent > 100) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['manual_progress_percentage'],
+          message: 'Use a percentage from 0 to 100',
+        })
+      }
+    }
   })
 
 export type GoalFormValues = z.input<typeof goalFormSchema>
@@ -47,6 +58,7 @@ export const emptyGoalForm = (category: GoalFormValues['category']): GoalFormVal
   tracking_type: 'MILESTONE',
   baseline_value: '',
   target_value: '',
+  manual_progress_percentage: '',
   unit: '',
   target_direction: 'AT_LEAST',
   visibility: 'TEAM',
@@ -61,7 +73,11 @@ export function toGoalInput(
   const numeric = values.tracking_type === 'NUMERIC'
   const count = values.tracking_type === 'COUNT'
   const manual = values.tracking_type === 'MANUAL'
-  const baseline = numeric ? (values.baseline_value ?? 0) : count ? 0 : null
+  const baseline = numeric || count ? (values.baseline_value ?? 0) : null
+  const startingPercent =
+    values.manual_progress_percentage == null
+      ? 0
+      : Math.max(0, Math.min(100, Math.round(values.manual_progress_percentage)))
 
   return {
     category: values.category,
@@ -73,7 +89,7 @@ export function toGoalInput(
     current_value: baseline,
     unit: numeric || count ? (values.unit?.trim() || null) : null,
     target_direction: numeric ? values.target_direction : count ? 'AT_LEAST' : null,
-    manual_progress_percentage: manual ? 0 : null,
+    manual_progress_percentage: manual ? startingPercent : null,
     visibility: values.visibility,
     required: values.required,
     parent_goal_id: parentGoalId,

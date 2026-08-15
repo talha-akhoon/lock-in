@@ -18,15 +18,17 @@ the commitment, the daily record, and the reckoning at the end.
 3. **Start a challenge.** A team has at most one open challenge (`DRAFT`,
    `UPCOMING`, or `ACTIVE`). Completed challenges stay visible as history.
 4. **Write goals.** Five areas: Religious, Physical, Career, Business, Personal.
-   Each goal has a tracking method (see below). Goals can be required (they
+   Each goal has a tracking method (see below). When you add a goal, record
+   where you are now — that is the baseline. Goals can be required (they
    decide the forfeit) or optional (they only affect your percentage). A goal
    can be visible to the team or private — private goals still count, but
    teammates see aggregates only, never the title or values.
 5. **Commit.** After a short submission window the commitment locks. Titles,
    targets and descriptions become final. Visibility and display order can
    still change. An admin can temporarily reopen a commitment; that is audited.
-6. **Starting point.** Before the challenge starts, record where you are now
-   on each goal. That becomes the baseline progress is measured from.
+6. **Starting point.** You set where you are now on each goal when you write
+   it. If the challenge has not started yet, Check-In also lets you update
+   that snapshot.
 7. **Check in.** Each day you update the goals that moved. Streaks and a
    heatmap use the challenge's own timezone.
 8. **Finish.** When the end date passes, required goals are scored. Anyone who
@@ -52,8 +54,8 @@ the commitment, the daily record, and the reckoning at the end.
 
 ### Daily accountability
 
-- **Starting point** — before kick-off, submit your current state for each
-  goal. Numeric and running-total values become the baseline.
+- **Starting point** — when you add a goal, set where you are now. That is
+  the baseline. Before kick-off you can still update it from Check-In.
 - Date-stamped check-ins, including a note.
 - Per-member heatmap and streak on the profile.
 - Team dashboard with everyone's progress (private titles redacted).
@@ -106,7 +108,19 @@ Edit `.env`:
 `DATABASE_URL` in `.env.example` is for the Compose network. Leave it as-is
 when you run Docker.
 
-### 2. Google OAuth
+### 2. Git hooks
+
+Install once so Ruff and oxlint run before each commit (needs `uv` and `npm`
+on the host):
+
+```bash
+uvx pre-commit install
+```
+
+The hook auto-formats staged backend files. If it changes something, `git add`
+those files and commit again. Tests stay in CI — they need Postgres.
+
+### 3. Google OAuth
 
 1. In [Google Cloud Console](https://console.cloud.google.com/) create (or
    pick) a project.
@@ -122,7 +136,7 @@ when you run Docker.
 Without this, the login page renders but the sign-in button stays disabled
 (`Add VITE_GOOGLE_CLIENT_ID to enable sign-in`).
 
-### 3. Start the stack
+### 4. Start the stack
 
 ```bash
 docker compose up --build
@@ -150,7 +164,7 @@ The seed script refuses to run against an unmigrated database.
 After changing `GOOGLE_CLIENT_ID`, restart the frontend container so Vite
 picks up `VITE_GOOGLE_CLIENT_ID`.
 
-### 4. Production-shaped image (optional)
+### 5. Production-shaped image (optional)
 
 The root `Dockerfile` is what you would deploy: one container, built SPA + API,
 non-root, docs off.

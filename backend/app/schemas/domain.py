@@ -107,8 +107,14 @@ class GoalBase(BaseModel):
         elif self.tracking_type == TrackingType.COUNT:
             if self.target_value is None or self.target_value <= 0:
                 raise ValueError("Count goals need a positive target")
-            self.baseline_value = Decimal(0)
+            if self.baseline_value is None:
+                self.baseline_value = Decimal(0)
+            if self.current_value is None:
+                self.current_value = self.baseline_value
             self.target_direction = TargetDirection.AT_LEAST
+        elif self.tracking_type == TrackingType.MANUAL:
+            if self.manual_progress_percentage is None:
+                self.manual_progress_percentage = 0
         elif self.tracking_type == TrackingType.MILESTONE:
             self.baseline_value = self.target_value = self.current_value = None
             self.target_direction = None
@@ -126,8 +132,10 @@ class GoalUpdate(BaseModel):
     tracking_type: TrackingType | None = None
     baseline_value: Decimal | None = None
     target_value: Decimal | None = None
+    current_value: Decimal | None = None
     unit: str | None = None
     target_direction: TargetDirection | None = None
+    manual_progress_percentage: int | None = Field(default=None, ge=0, le=100)
     visibility: GoalVisibility | None = None
     required: bool | None = None
     parent_goal_id: uuid.UUID | None = None

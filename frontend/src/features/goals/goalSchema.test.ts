@@ -57,13 +57,27 @@ describe('goal payload construction', () => {
     })
   })
 
-  it('gives a count goal a zero baseline and an increasing direction', () => {
+  it('gives a count goal a zero baseline when starting from scratch', () => {
     const values = goalFormSchema.parse({ ...base, tracking_type: 'COUNT', target_value: '100' })
     expect(toGoalInput(values)).toMatchObject({
       baseline_value: 0,
       current_value: 0,
       target_value: 100,
       target_direction: 'AT_LEAST',
+    })
+  })
+
+  it('keeps a count goal starting total as the baseline', () => {
+    const values = goalFormSchema.parse({
+      ...base,
+      tracking_type: 'COUNT',
+      baseline_value: '2',
+      target_value: '12',
+    })
+    expect(toGoalInput(values)).toMatchObject({
+      baseline_value: 2,
+      current_value: 2,
+      target_value: 12,
     })
   })
 
@@ -94,9 +108,18 @@ describe('goal payload construction', () => {
     expect(toGoalInput(values).baseline_value).toBe(0)
   })
 
-  it('starts a manual goal at zero percent', () => {
+  it('starts a manual goal at zero percent when left blank', () => {
     const values = goalFormSchema.parse({ ...base, tracking_type: 'MANUAL' })
     expect(toGoalInput(values).manual_progress_percentage).toBe(0)
+  })
+
+  it('keeps a manual starting percentage', () => {
+    const values = goalFormSchema.parse({
+      ...base,
+      tracking_type: 'MANUAL',
+      manual_progress_percentage: '25',
+    })
+    expect(toGoalInput(values).manual_progress_percentage).toBe(25)
   })
 
   it('attaches a parent when creating a sub-goal', () => {

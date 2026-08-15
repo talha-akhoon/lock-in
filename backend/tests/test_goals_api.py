@@ -51,6 +51,16 @@ def test_a_count_goal_gets_a_zero_baseline_and_at_least_direction(team_setup) ->
     assert body["target_direction"] == "AT_LEAST"
 
 
+def test_a_count_goal_can_start_from_an_existing_total(team_setup) -> None:
+    body = team_setup.admin_client.post(
+        "/api/v1/me/goals",
+        json={**COUNT, "baseline_value": "2", "current_value": "2"},
+    ).json()
+
+    assert Decimal(body["baseline_value"]) == Decimal(2)
+    assert Decimal(body["current_value"]) == Decimal(2)
+
+
 def test_a_milestone_goal_has_no_numeric_fields(team_setup) -> None:
     body = team_setup.admin_client.post("/api/v1/me/goals", json=MILESTONE).json()
 

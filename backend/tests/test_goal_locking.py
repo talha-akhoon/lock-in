@@ -19,6 +19,8 @@ IMMUTABLE_CASES = {
     "tracking_type": "MANUAL",
     "baseline_value": "10",
     "target_value": "95",
+    "current_value": "95",
+    "manual_progress_percentage": 10,
     "unit": "lbs",
     "target_direction": "AT_MOST",
     "required": False,
