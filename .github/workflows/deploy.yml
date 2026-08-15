@@ -1,10 +1,9 @@
+# Manual redeploy only. Automatic deploys live in ci.yml so they run in the
+# same workflow as the tests that gated them. workflow_run was never firing
+# (GitHub registered this file as invalid and skipped the listener).
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -25,12 +24,9 @@ env:
 
 jobs:
   cloud-run:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: google-github-actions/auth@v2
         with:
@@ -50,7 +46,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.IMAGE }}:${{ github.event.workflow_run.head_sha || github.sha }}
+            ${{ env.IMAGE }}:${{ github.sha }}
             ${{ env.IMAGE }}:latest
           build-args: |
             VITE_GOOGLE_CLIENT_ID=${{ env.GOOGLE_CLIENT_ID }}
@@ -61,7 +57,7 @@ jobs:
         run: |
           gcloud run deploy "${CLOUD_RUN_SERVICE}" \
             --project "${GCP_PROJECT}" \
-            --image "${IMAGE}:${{ github.event.workflow_run.head_sha || github.sha }}" \
+            --image "${IMAGE}:${{ github.sha }}" \
             --region "${GCP_REGION}" \
             --service-account "${CLOUD_RUN_SA}" \
             --allow-unauthenticated \
@@ -70,24 +66,3 @@ jobs:
             --memory 512Mi \
             --set-env-vars "ENVIRONMENT=production,SECURE_COOKIES=true,FRONTEND_DIST=/frontend/dist,CHALLENGE_TIMEZONE=Europe/London" \
             --set-secrets "DATABASE_URL=lockin-database-url:latest,SECRET_KEY=lockin-secret-key:latest,GOOGLE_CLIENT_ID=lockin-google-client-id:latest"
-
-  cloudflare:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-
-      - name: Deploy Worker
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: infra/cloudflare
-          command: deploy
-
-      - name: Skip Worker
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
-        run: echo "CLOUDFLARE_API_TOKEN is not set; skipping the Worker deploy."

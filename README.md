@@ -25,9 +25,11 @@ the commitment, the daily record, and the reckoning at the end.
 5. **Commit.** After a short submission window the commitment locks. Titles,
    targets and descriptions become final. Visibility and display order can
    still change. An admin can temporarily reopen a commitment; that is audited.
-6. **Check in.** Each day you update the goals that moved. Streaks and a
+6. **Starting point.** Before the challenge starts, record where you are now
+   on each goal. That becomes the baseline progress is measured from.
+7. **Check in.** Each day you update the goals that moved. Streaks and a
    heatmap use the challenge's own timezone.
-7. **Finish.** When the end date passes, required goals are scored. Anyone who
+8. **Finish.** When the end date passes, required goals are scored. Anyone who
    fell short owes the forfeit to each other member. The results screen lists
    who pays whom.
 
@@ -50,6 +52,8 @@ the commitment, the daily record, and the reckoning at the end.
 
 ### Daily accountability
 
+- **Starting point** — before kick-off, submit your current state for each
+  goal. Numeric and running-total values become the baseline.
 - Date-stamped check-ins, including a note.
 - Per-member heatmap and streak on the profile.
 - Team dashboard with everyone's progress (private titles redacted).
@@ -242,8 +246,9 @@ of a custom domain. Details below; you do not need them to develop locally.
 
 ### Google Cloud Run
 
-Every push to `main` that passes CI is built and deployed by
-`.github/workflows/deploy.yml`. Manual first-time or emergency deploys:
+Every push to `main` that passes CI is built and deployed by the `deploy`
+job in `.github/workflows/ci.yml`. Manual emergency deploys: Actions →
+**Deploy**, or:
 
 ```bash
 gcloud builds submit \
@@ -268,9 +273,11 @@ to the OAuth client's authorised origins.
 
 ### GitHub Actions (CI, deploy, backups)
 
-CI (`.github/workflows/ci.yml`) runs on every push and pull request. After CI
-succeeds on `main`, Deploy builds the production image, pushes it to Artifact
-Registry, updates Cloud Run, and deploys the Cloudflare Worker.
+CI (`.github/workflows/ci.yml`) runs on every push and pull request. On
+`main`, after tests and the image smoke check pass, the same workflow pushes
+the image to Artifact Registry and updates Cloud Run. The Cloudflare Worker
+job is skipped unless `CLOUDFLARE_*` secrets are set. **Deploy** is a
+manual-only fallback.
 
 Create a deploy identity once. The org blocks service-account JSON keys
 (`iam.disableServiceAccountKeyCreation`), so GitHub impersonates

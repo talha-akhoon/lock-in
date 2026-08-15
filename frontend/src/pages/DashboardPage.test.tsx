@@ -95,6 +95,24 @@ describe('dashboard', () => {
     expect(await screen.findByText(/^Starts /)).toBeInTheDocument()
   })
 
+  it('points a committed member at the starting-point form before kick-off', async () => {
+    stub(makeDashboard([]), makeChallenge({ status: 'UPCOMING', day_number: 0 }))
+    renderWithAuth(
+      <DashboardPage />,
+      makeAuth({
+        challenge_status: 'UPCOMING',
+        goals_locked: true,
+        goals_committed_at: '2026-01-03T00:00:00Z',
+      }),
+    )
+
+    expect(await screen.findByText('Record your starting point')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /starting point/i })).toHaveAttribute(
+      'href',
+      '/check-in',
+    )
+  })
+
   it('treats no challenge as a normal state, not a failure', async () => {
     mockFetch({ 'GET /challenges/current': httpError(404, 'No challenge yet') })
     renderWithAuth(<DashboardPage />, makeAuth())

@@ -7,17 +7,51 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.domain import Challenge, ChallengeParticipant, DailyCheckin, Goal
+from app.models.domain import (
+    Challenge,
+    ChallengeParticipant,
+    DailyCheckin,
+    Goal,
+    TrackingType,
+)
 from app.schemas.domain import CheckinCreate, ProgressCreate
-from app.services.clock import challenge_today, local_date
+from app.services.clock import challenge_today, is_before_start, local_date
 from app.services.goals import add_progress, require_goal
 from app.services.progress import checkin_streak
+
+
+def checkin_date_window(challenge: Challenge) -> tuple[date, date]:
+    """Dates the form may open.
+
+    Before kick-off the only legal day is today, so a member can record their
+    starting point. Once the challenge is running the window is the challenge
+    itself.
+    """
+    today = challenge_today(challenge)
+    start = local_date(challenge, challenge.start_at)
+    end = local_date(challenge, challenge.end_at)
+    return min(start, today), end
+
+
+def assert_checkin_date_allowed(
+    challenge: Challenge, day: date, *, writing: bool
+) -> None:
+    first, last = checkin_date_window(challenge)
+    today = challenge_today(challenge)
+    if writing:
+        last = min(last, today)
+    if day < first or day > last:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "That date is outside the challenge",
+        )
 
 
 def save_checkin(
     db: Session,
     *,
     participant: ChallengeParticipant,
+    challenge: Challenge,
     user_id: uuid.UUID,
     payload: CheckinCreate,
     team_id: uuid.UUID | None = None,
@@ -27,7 +61,13 @@ def save_checkin(
     Wrapped in a savepoint so a bad goal id halfway through the list does not
     leave the earlier updates applied; the member sees a clean failure and can
     resubmit the whole day.
+
+    A write before kick-off is a starting-point snapshot: numeric and count
+    values become the baseline progress is measured from once the challenge
+    begins.
     """
+    assert_checkin_date_allowed(challenge, payload.date, writing=True)
+    pre_start = is_before_start(challenge, payload.date)
     with db.begin_nested():
         checkin = db.scalar(
             select(DailyCheckin).where(
@@ -52,17 +92,30 @@ def save_checkin(
                     status.HTTP_422_UNPROCESSABLE_CONTENT,
                     "Update the sub-goals instead of the parent",
                 )
+            fields = update.model_dump(exclude={"goal_id", "entry_date"})
+            if (
+                pre_start
+                and fields.get("numeric_delta") is not None
+                and fields.get("numeric_value") is None
+            ):
+                # Starting point is an absolute figure, even if a client sent
+                # the daily-check-in delta shape.
+                fields["numeric_value"] = fields["numeric_delta"]
+                fields["numeric_delta"] = None
             add_progress(
                 db,
                 goal=goal,
                 participant=participant,
                 user_id=user_id,
                 team_id=team_id,
-                payload=ProgressCreate(
-                    **update.model_dump(exclude={"goal_id", "entry_date"}),
-                    entry_date=payload.date,
-                ),
+                payload=ProgressCreate(**fields, entry_date=payload.date),
             )
+            if (
+                pre_start
+                and goal.tracking_type in {TrackingType.NUMERIC, TrackingType.COUNT}
+                and goal.current_value is not None
+            ):
+                goal.baseline_value = goal.current_value
         db.flush()
     return checkin
 
@@ -118,12 +171,15 @@ def heatmap(
     )
     counts = update_counts(db, participant.id)
     today = challenge_today(challenge)
+    start = local_date(challenge, challenge.start_at)
+    challenge_days = [row.checkin_date for row in rows if row.checkin_date >= start]
     return {
-        "start_date": local_date(challenge, challenge.start_at),
+        "start_date": start,
         "end_date": local_date(challenge, challenge.end_at),
         "today": today,
-        "streak": checkin_streak([row.checkin_date for row in rows], today),
-        "total_days_logged": len(rows),
+        "pre_start": is_before_start(challenge, today),
+        "streak": checkin_streak(challenge_days, today),
+        "total_days_logged": len(challenge_days),
         "days": [
             {
                 "date": row.checkin_date,

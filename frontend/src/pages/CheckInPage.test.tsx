@@ -11,7 +11,7 @@ const today = isoToday()
 
 function stub(goals: Goal[], extra: Record<string, unknown> = {}) {
   return mockFetch({
-    [`GET /me/checkins/${today}`]: { date: today, note: null, exists: false, goals },
+    [`GET /me/checkins/${today}`]: { date: today, note: null, exists: false, pre_start: false, goals },
     'GET /me/checkins': makeHeatmap({ today, streak: 4, total_days_logged: 9 }),
     'POST /me/checkins': { id: 'checkin-1', date: today, note: null, updates: 1 },
     ...extra,
@@ -34,7 +34,7 @@ describe('check-in form', () => {
       tracking_type: 'MANUAL',
       manual_progress_percentage: 20,
     })
-    const milestone = makeGoal({ title: 'Read Sahih Bukhari', tracking_type: 'MILESTONE' })
+    const milestone = makeGoal({ title: 'Finish the book', tracking_type: 'MILESTONE' })
     const fetchMock = stub([numeric, count, manual, milestone])
 
     renderWithAuth(<CheckInPage />, makeAuth())
@@ -45,7 +45,7 @@ describe('check-in form', () => {
     await user.type(screen.getByLabelText('Gym sessions'), '2')
     await user.clear(screen.getByLabelText('Business plan'))
     await user.type(screen.getByLabelText('Business plan'), '35')
-    await user.click(screen.getByLabelText('Read Sahih Bukhari'))
+    await user.click(screen.getByLabelText('Finish the book'))
     await user.type(screen.getByLabelText(/notes/i), 'Heavy day')
     await user.click(screen.getByRole('button', { name: /save today/i }))
 
@@ -125,6 +125,7 @@ describe('check-in form', () => {
         date: today,
         note: 'Already logged',
         exists: true,
+        pre_start: false,
         goals: [numeric],
       },
       'GET /me/checkins': makeHeatmap({ today }),
@@ -148,5 +149,45 @@ describe('check-in form', () => {
     renderWithAuth(<CheckInPage />, makeAuth())
     expect(await screen.findByText('No goals to check in against')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /set my goals/i })).toBeInTheDocument()
+  })
+
+  it('records an absolute starting point before kick-off', async () => {
+    const count = makeGoal({
+      title: 'Gym sessions',
+      tracking_type: 'COUNT',
+      current_value: 0,
+      target_value: 100,
+    })
+    const fetchMock = mockFetch({
+      [`GET /me/checkins/${today}`]: {
+        date: today,
+        note: null,
+        exists: false,
+        pre_start: true,
+        goals: [count],
+      },
+      'GET /me/checkins': makeHeatmap({
+        today,
+        start_date: '2099-01-01',
+        pre_start: true,
+        streak: 0,
+      }),
+      'POST /me/checkins': { id: 'checkin-1', date: today, note: null, updates: 1 },
+    })
+    renderWithAuth(<CheckInPage />, makeAuth({ challenge_status: 'UPCOMING' }))
+    const user = userEvent.setup()
+
+    expect(await screen.findByText('Starting point')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Date')).not.toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Gym sessions'))
+    await user.type(screen.getByLabelText('Gym sessions'), '2')
+    await user.click(screen.getByRole('button', { name: /save starting point/i }))
+
+    await waitFor(() => expect(fetchMock.sent('POST /me/checkins')).toHaveLength(1))
+    expect(fetchMock.sent('POST /me/checkins')[0].body).toEqual({
+      date: today,
+      note: null,
+      updates: [{ goal_id: count.id, numeric_value: 2 }],
+    })
   })
 })

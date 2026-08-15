@@ -20,7 +20,11 @@ export function checkinTargets(goals: Goal[]): Goal[] {
  * must record nothing — otherwise every day would log a no-op entry and inflate
  * the heatmap and activity feed.
  */
-export function buildCheckinUpdates(goals: Goal[], state: CheckinFormState): CheckinUpdate[] {
+export function buildCheckinUpdates(
+  goals: Goal[],
+  state: CheckinFormState,
+  baseline = false,
+): CheckinUpdate[] {
   const updates: CheckinUpdate[] = []
   for (const goal of checkinTargets(goals)) {
     const raw = state[goal.id]
@@ -40,11 +44,12 @@ export function buildCheckinUpdates(goals: Goal[], state: CheckinFormState): Che
       const clamped = Math.max(0, Math.min(100, Math.round(value)))
       if (clamped === (goal.manual_progress_percentage ?? 0)) continue
       updates.push({ goal_id: goal.id, manual_percentage: clamped })
-    } else if (goal.tracking_type === 'COUNT') {
+    } else if (goal.tracking_type === 'COUNT' && !baseline) {
       if (value === 0) continue
       updates.push({ goal_id: goal.id, numeric_delta: value })
     } else {
-      // The stored figure is a decimal string, so compare as numbers.
+      // Starting point and numeric check-ins set the current figure. Count
+      // goals only do this before kick-off; during the challenge they add.
       const stored = Number(goal.current_value ?? goal.baseline_value ?? NaN)
       if (Number.isFinite(stored) && value === stored) continue
       updates.push({ goal_id: goal.id, numeric_value: value })
@@ -56,11 +61,11 @@ export function buildCheckinUpdates(goals: Goal[], state: CheckinFormState): Che
 export function buildCheckinPayload(
   goals: Goal[],
   state: CheckinFormState,
-  { date, note }: { date: string; note: string | null },
+  { date, note, baseline = false }: { date: string; note: string | null; baseline?: boolean },
 ): CheckinPayload {
   return {
     date,
     note: note?.trim() ? note.trim() : null,
-    updates: buildCheckinUpdates(goals, state),
+    updates: buildCheckinUpdates(goals, state, baseline),
   }
 }

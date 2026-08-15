@@ -210,30 +210,48 @@ def test_the_heatmap_window_comes_from_the_challenge(
     assert 88 <= span <= 90, "window must track the challenge, not a fixed 184 days"
 
 
-def test_the_streak_counts_consecutive_days(team_setup, today, goals) -> None:
-    latest = date.fromisoformat(today)
+def test_the_streak_counts_consecutive_days(
+    make_user, make_team, make_challenge, make_participant, client_factory
+) -> None:
+    from app.services.clock import challenge_today
+
+    user = make_user("Streak")
+    team = make_team(user, name="Streak")
+    challenge = make_challenge(team, start_offset=timedelta(days=-10))
+    make_participant(challenge, user)
+    client = client_factory(user.id)
+    latest = challenge_today(challenge)
     for offset in (2, 1, 0):
-        team_setup.admin_client.post(
+        client.post(
             "/api/v1/me/checkins",
             json={"date": (latest - timedelta(days=offset)).isoformat()},
         )
 
-    body = team_setup.admin_client.get("/api/v1/me/checkins").json()
+    body = client.get("/api/v1/me/checkins").json()
 
     assert body["total_days_logged"] == 3
     assert len(body["days"]) == 3
     assert body["streak"] == 3
 
 
-def test_a_gap_breaks_the_streak(team_setup, today, goals) -> None:
-    latest = date.fromisoformat(today)
+def test_a_gap_breaks_the_streak(
+    make_user, make_team, make_challenge, make_participant, client_factory
+) -> None:
+    from app.services.clock import challenge_today
+
+    user = make_user("Gap")
+    team = make_team(user, name="Gap")
+    challenge = make_challenge(team, start_offset=timedelta(days=-10))
+    make_participant(challenge, user)
+    client = client_factory(user.id)
+    latest = challenge_today(challenge)
     for offset in (5, 4, 0):
-        team_setup.admin_client.post(
+        client.post(
             "/api/v1/me/checkins",
             json={"date": (latest - timedelta(days=offset)).isoformat()},
         )
 
-    body = team_setup.admin_client.get("/api/v1/me/checkins").json()
+    body = client.get("/api/v1/me/checkins").json()
 
     assert body["total_days_logged"] == 3
     assert body["streak"] == 1
@@ -262,4 +280,98 @@ def test_a_day_with_no_checkin_reports_that_it_is_empty(
 
 def test_a_date_outside_the_challenge_is_rejected(team_setup, today, goals) -> None:
     response = team_setup.admin_client.get("/api/v1/me/checkins/2020-01-01")
+    assert response.status_code == 422
+
+
+def test_today_is_allowed_before_the_challenge_starts(
+    make_user, make_team, make_challenge, make_participant, make_goal, client_factory
+) -> None:
+    from app.models.domain import ChallengeStatus
+    from app.services.clock import challenge_today
+
+    user = make_user("Early")
+    team = make_team(user, name="Warmup")
+    challenge = make_challenge(
+        team, start_offset=timedelta(days=14), status=ChallengeStatus.UPCOMING
+    )
+    participant = make_participant(challenge, user)
+    make_goal(participant)
+    today = challenge_today(challenge).isoformat()
+    client = client_factory(user.id)
+
+    body = client.get(f"/api/v1/me/checkins/{today}").json()
+    heatmap = client.get("/api/v1/me/checkins").json()
+
+    assert body["pre_start"] is True
+    assert heatmap["pre_start"] is True
+    assert heatmap["streak"] == 0
+
+
+def test_a_starting_point_becomes_the_baseline(
+    make_user, make_team, make_challenge, make_participant, make_goal, client_factory, db
+) -> None:
+    from app.models.domain import ChallengeStatus
+    from app.services.clock import challenge_today
+
+    user = make_user("Baseline")
+    team = make_team(user, name="Ready")
+    challenge = make_challenge(
+        team, start_offset=timedelta(days=10), status=ChallengeStatus.UPCOMING
+    )
+    participant = make_participant(challenge, user)
+    numeric = make_goal(participant, title="Deadlift 120kg")
+    count = make_goal(
+        participant,
+        title="Read scripture 5 times",
+        category="RELIGIOUS",
+        tracking_type="COUNT",
+        baseline_value=Decimal(0),
+        current_value=Decimal(0),
+        target_value=Decimal(5),
+        unit="completions",
+    )
+    today = challenge_today(challenge).isoformat()
+    client = client_factory(user.id)
+
+    response = client.post(
+        "/api/v1/me/checkins",
+        json={
+            "date": today,
+            "note": "Where I am now",
+            "updates": [
+                {"goal_id": str(numeric.id), "numeric_value": "95"},
+                {"goal_id": str(count.id), "numeric_delta": "2"},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    db.expire_all()
+    numeric = db.get(Goal, numeric.id)
+    count = db.get(Goal, count.id)
+    assert numeric.current_value == Decimal("95.0000")
+    assert numeric.baseline_value == Decimal("95.0000")
+    assert count.current_value == Decimal("2.0000")
+    assert count.baseline_value == Decimal("2.0000")
+
+
+def test_a_future_date_cannot_be_written_before_kick_off(
+    make_user, make_team, make_challenge, make_participant, client_factory
+) -> None:
+    from app.models.domain import ChallengeStatus
+    from app.services.clock import challenge_today, local_date
+
+    user = make_user("Wait")
+    team = make_team(user, name="Hold")
+    challenge = make_challenge(
+        team, start_offset=timedelta(days=14), status=ChallengeStatus.UPCOMING
+    )
+    make_participant(challenge, user)
+    start = local_date(challenge, challenge.start_at).isoformat()
+    today = challenge_today(challenge).isoformat()
+    assert start != today
+
+    response = client_factory(user.id).post(
+        "/api/v1/me/checkins", json={"date": start, "note": "Too early"}
+    )
     assert response.status_code == 422

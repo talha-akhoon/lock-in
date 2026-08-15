@@ -16,7 +16,7 @@ export const TRACKING_HELP: Record<
   },
   COUNT: {
     title: 'A running total',
-    body: 'Add what you did today. Check-in asks for today’s amount, not a new overall figure.',
+    body: 'Add what you did today. Check-in asks for today’s amount, not a new overall figure. Before the challenge starts, record how many you already have — that becomes the baseline.',
     example: '150 pages of reading, 12 books, 100 gym sessions.',
   },
   MANUAL: {

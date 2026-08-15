@@ -17,6 +17,13 @@ describe('check-in payload', () => {
     ])
   })
 
+  it('sends a count goal as an absolute value before kick-off', () => {
+    const goal = makeGoal({ tracking_type: 'COUNT', current_value: 0, target_value: 100 })
+    expect(buildCheckinUpdates([goal], { [goal.id]: '2' }, true)).toEqual([
+      { goal_id: goal.id, numeric_value: 2 },
+    ])
+  })
+
   it('sends a manual goal as a percentage', () => {
     const goal = makeGoal({ tracking_type: 'MANUAL', manual_progress_percentage: 20 })
     expect(buildCheckinUpdates([goal], { [goal.id]: '45' })).toEqual([

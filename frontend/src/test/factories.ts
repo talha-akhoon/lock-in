@@ -134,6 +134,7 @@ export function makeHeatmap(overrides: Partial<Heatmap> = {}): Heatmap {
     start_date: '2026-01-01',
     end_date: '2026-01-10',
     today: '2026-01-05',
+    pre_start: false,
     streak: 2,
     total_days_logged: 2,
     days: [

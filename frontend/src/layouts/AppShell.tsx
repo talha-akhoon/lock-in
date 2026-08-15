@@ -17,19 +17,26 @@ import { NotificationBell } from '../components/NotificationBell'
 import { useAuthContext, type AuthContext } from './authContext'
 import { NoChallengePage } from '../pages/NoChallengePage'
 
-const NAV = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/check-in', label: "Today's Check-In", icon: CalendarCheck },
-  { to: '/goals', label: 'My Goals', icon: Target },
-  { to: '/team', label: 'Team', icon: Users },
-  { to: '/activity', label: 'Activity', icon: Activity },
-]
+function navItems(preStart: boolean) {
+  return [
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    {
+      to: '/check-in',
+      label: preStart ? 'Starting point' : "Today's Check-In",
+      icon: CalendarCheck,
+    },
+    { to: '/goals', label: 'My Goals', icon: Target },
+    { to: '/team', label: 'Team', icon: Users },
+    { to: '/activity', label: 'Activity', icon: Activity },
+  ]
+}
 
 export function AppShell() {
   const auth = useAuthContext()
   const [open, setOpen] = useState(false)
   const location = useLocation()
   const completed = auth.challenge_status === 'COMPLETED'
+  const preStart = auth.challenge_status === 'UPCOMING'
   // Once the challenge is over there is nothing left to submit, so nudging
   // someone towards the wizard would only send them to a dead end.
   const needsGoals =
@@ -45,7 +52,7 @@ export function AppShell() {
           <X />
         </button>
         <nav>
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {navItems(preStart).map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} onClick={() => setOpen(false)}>
               <Icon /> {label}
             </NavLink>

@@ -129,6 +129,7 @@ export type Heatmap = {
   start_date: string
   end_date: string
   today: string
+  pre_start: boolean
   streak: number
   total_days_logged: number
   days: HeatmapDay[]
@@ -228,6 +229,7 @@ export type DayCheckin = {
   date: string
   note: string | null
   exists: boolean
+  pre_start: boolean
   goals: Goal[]
 }
 

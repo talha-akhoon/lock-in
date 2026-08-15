@@ -70,6 +70,19 @@ export function DashboardPage() {
         <Countdown dueAt={auth.goals_due_at} locked={false} />
       )}
 
+      {upcoming && (auth.goals_locked || auth.goals_committed_at) && (
+        <div className="nudge">
+          <TriangleAlert />
+          <div>
+            <b>Record your starting point</b>
+            <span>Save where you are now on each goal before the challenge starts.</span>
+          </div>
+          <Link className="primary" to="/check-in">
+            Starting point
+          </Link>
+        </div>
+      )}
+
       <section className="team-progress card">
         <div className="section-title">
           <div>

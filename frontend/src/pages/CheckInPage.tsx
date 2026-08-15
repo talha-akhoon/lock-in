@@ -13,13 +13,13 @@ import { formatAmount, isoToday } from '../lib/format'
 import type { Goal } from '../lib/types'
 
 /** Existing values are the starting point so a save is always a real change. */
-function initialState(goals: Goal[]): CheckinFormState {
+function initialState(goals: Goal[], baseline: boolean): CheckinFormState {
   const state: CheckinFormState = {}
   for (const goal of checkinTargets(goals)) {
     if (goal.tracking_type === 'MILESTONE') state[goal.id] = Boolean(goal.completed_at)
     else if (goal.tracking_type === 'MANUAL')
       state[goal.id] = String(goal.manual_progress_percentage ?? 0)
-    else if (goal.tracking_type === 'COUNT') state[goal.id] = ''
+    else if (goal.tracking_type === 'COUNT' && !baseline) state[goal.id] = ''
     // Never show the API's decimal padding in an input the member types into.
     else state[goal.id] = goal.current_value === null ? '' : formatAmount(goal.current_value)
   }
@@ -37,10 +37,17 @@ export function CheckInPage() {
   const [error, setError] = useState('')
 
   const goals = useMemo(() => checkin.data?.goals ?? [], [checkin.data])
+  const preStart = Boolean(checkin.data?.pre_start || heatmap.data?.pre_start)
+
+  useEffect(() => {
+    if (heatmap.data?.pre_start && heatmap.data.today !== day) {
+      setDay(heatmap.data.today)
+    }
+  }, [heatmap.data, day])
 
   useEffect(() => {
     if (!checkin.data) return
-    setState(initialState(checkin.data.goals))
+    setState(initialState(checkin.data.goals, checkin.data.pre_start))
     setNote(checkin.data.note ?? '')
     setMessage('')
     setError('')
@@ -52,7 +59,7 @@ export function CheckInPage() {
     event.preventDefault()
     setError('')
     setMessage('')
-    const payload = buildCheckinPayload(goals, state, { date: day, note })
+    const payload = buildCheckinPayload(goals, state, { date: day, note, baseline: preStart })
     if (!payload.updates.length && !payload.note) {
       setError('Nothing to save yet — update a goal or leave a note.')
       return
@@ -72,23 +79,29 @@ export function CheckInPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Daily accountability"
-        title="Today's Check-In"
-        description="How did you move forward? Leave the fields you didn't touch blank."
+        eyebrow={preStart ? 'Before kick-off' : 'Daily accountability'}
+        title={preStart ? 'Starting point' : "Today's Check-In"}
+        description={
+          preStart
+            ? 'Record where you are now on each goal. Progress during the challenge is measured from this.'
+            : "How did you move forward? Leave the fields you didn't touch blank."
+        }
       >
-        <label className="date-picker">
-          Date
-          <input
-            type="date"
-            value={day}
-            max={heatmap.data?.today ?? isoToday()}
-            min={heatmap.data?.start_date}
-            onChange={(event) => setDay(event.target.value)}
-          />
-        </label>
+        {!preStart && (
+          <label className="date-picker">
+            Date
+            <input
+              type="date"
+              value={day}
+              max={heatmap.data?.today ?? isoToday()}
+              min={heatmap.data?.start_date}
+              onChange={(event) => setDay(event.target.value)}
+            />
+          </label>
+        )}
       </PageHeader>
 
-      {heatmap.data && heatmap.data.streak > 0 && (
+      {heatmap.data && !preStart && heatmap.data.streak > 0 && (
         <div className="streak-banner">
           <Flame />
           <div>
@@ -114,7 +127,9 @@ export function CheckInPage() {
         <form className="checkin-form" onSubmit={submit}>
           {checkin.data?.exists && (
             <div className="hint">
-              You already checked in on this date. Saving again updates it.
+              {preStart
+                ? 'You already saved a starting point. Saving again updates it.'
+                : 'You already checked in on this date. Saving again updates it.'}
             </div>
           )}
           {CATEGORY_ORDER.map((category) => {
@@ -138,6 +153,7 @@ export function CheckInPage() {
                           key={child.id}
                           goal={child}
                           value={state[child.id]}
+                          baseline={preStart}
                           onChange={(value) => setState((prev) => ({ ...prev, [child.id]: value }))}
                         />
                       ))}
@@ -147,6 +163,7 @@ export function CheckInPage() {
                       key={goal.id}
                       goal={goal}
                       value={state[goal.id]}
+                      baseline={preStart}
                       onChange={(value) => setState((prev) => ({ ...prev, [goal.id]: value }))}
                     />
                   ),
@@ -172,7 +189,8 @@ export function CheckInPage() {
             </div>
           )}
           <button className="primary save-checkin" disabled={save.isPending}>
-            <CalendarCheck /> {save.isPending ? 'Saving…' : "Save today's progress"}
+            <CalendarCheck />{' '}
+            {save.isPending ? 'Saving…' : preStart ? 'Save starting point' : "Save today's progress"}
           </button>
         </form>
       )}
@@ -183,10 +201,12 @@ export function CheckInPage() {
 function CheckinRow({
   goal,
   value,
+  baseline,
   onChange,
 }: {
   goal: Goal
   value: string | boolean | undefined
+  baseline?: boolean
   onChange: (value: string | boolean) => void
 }) {
   const label = `${goal.title}${goal.unit ? ` (${goal.unit})` : ''}`
@@ -194,7 +214,7 @@ function CheckinRow({
     <div className="checkin-row">
       <div>
         <b>{goal.title}</b>
-        <span>{describe(goal)}</span>
+        <span>{describe(goal, baseline)}</span>
       </div>
       {goal.tracking_type === 'MILESTONE' ? (
         <input
@@ -218,7 +238,7 @@ function CheckinRow({
           type="number"
           aria-label={label}
           step="any"
-          placeholder={goal.tracking_type === 'COUNT' ? '+0' : 'No update'}
+          placeholder={goal.tracking_type === 'COUNT' && !baseline ? '+0' : 'No update'}
           value={typeof value === 'string' ? value : ''}
           onChange={(event) => onChange(event.target.value)}
         />
@@ -227,15 +247,23 @@ function CheckinRow({
   )
 }
 
-function describe(goal: Goal): string {
+function describe(goal: Goal, baseline?: boolean): string {
   if (goal.tracking_type === 'MILESTONE') {
-    return goal.completed_at ? 'Complete' : 'Tick when done'
+    return goal.completed_at
+      ? 'Complete'
+      : baseline
+        ? 'Tick if this is already done'
+        : 'Tick when done'
   }
   if (goal.tracking_type === 'MANUAL') {
-    return `Currently ${goal.manual_progress_percentage ?? 0}% — set the new percentage`
+    return baseline
+      ? `Currently ${goal.manual_progress_percentage ?? 0}% — set where you are now`
+      : `Currently ${goal.manual_progress_percentage ?? 0}% — set the new percentage`
   }
   if (goal.tracking_type === 'COUNT') {
-    return `${formatAmount(goal.current_value)} of ${formatAmount(goal.target_value)} — add today's amount`
+    return baseline
+      ? `${formatAmount(goal.current_value)} of ${formatAmount(goal.target_value)} — how many you already have`
+      : `${formatAmount(goal.current_value)} of ${formatAmount(goal.target_value)} — add today's amount`
   }
   const current = formatAmount(goal.current_value ?? goal.baseline_value)
   return `Currently ${current}, target ${formatAmount(goal.target_value)}`

@@ -28,6 +28,12 @@ def challenge_today(challenge: Challenge) -> date:
     return datetime.now(challenge_zone(challenge)).date()
 
 
+def is_before_start(challenge: Challenge, day: date | None = None) -> bool:
+    """True while the challenge-local calendar is still before kick-off."""
+    day = day if day is not None else challenge_today(challenge)
+    return day < local_date(challenge, challenge.start_at)
+
+
 def local_date(challenge: Challenge, moment: datetime) -> date:
     return as_utc(moment).astimezone(challenge_zone(challenge)).date()
 
