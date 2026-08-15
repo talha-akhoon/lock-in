@@ -33,13 +33,17 @@ def test_upgrade_is_idempotent(engine: Engine) -> None:
 
 def test_goal_category_is_religious_not_islamic(engine: Engine) -> None:
     with engine.connect() as conn:
-        labels = conn.execute(
-            text(
-                "select enumlabel from pg_enum "
-                "join pg_type on pg_enum.enumtypid = pg_type.oid "
-                "where typname = 'goalcategory'"
+        labels = (
+            conn.execute(
+                text(
+                    "select enumlabel from pg_enum "
+                    "join pg_type on pg_enum.enumtypid = pg_type.oid "
+                    "where typname = 'goalcategory'"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
     assert "RELIGIOUS" in labels
     assert "ISLAMIC" not in labels
 
