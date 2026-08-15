@@ -276,7 +276,7 @@ to the OAuth client's authorised origins.
 CI (`.github/workflows/ci.yml`) runs on every push and pull request. On
 `main`, after tests and the image smoke check pass, the same workflow pushes
 the image to Artifact Registry and updates Cloud Run. The Cloudflare Worker
-job is skipped unless `CLOUDFLARE_*` secrets are set. **Deploy** is a
+is deployed separately with Wrangler, not from Actions. **Deploy** is a
 manual-only fallback.
 
 Create a deploy identity once. The org blocks service-account JSON keys
@@ -344,19 +344,16 @@ variables → Actions — `gh` is not required):
 
 | Secret | Used by | Value |
 | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Deploy | Token with Workers edit on the zone |
-| `CLOUDFLARE_ACCOUNT_ID` | Deploy | Cloudflare account ID |
 | `BACKUP_DATABASE_URL` | Backups | Neon **direct** `postgresql://…?sslmode=require` |
 | `BACKUP_ENCRYPTION_KEY` | Backups | Long passphrase also stored offline |
 
-`CLOUDFLARE_*` is optional: without it, Cloud Run still deploys and the Worker
-job is skipped. After changing secrets, run **Deploy** and **Weekly database
-backup** from the Actions tab once to prove both paths.
+After changing secrets, run **Weekly database backup** from the Actions tab
+once to prove the dump path.
 
 ### Cloudflare custom domain
 
 Point the domain's nameservers at Cloudflare, set `ORIGIN_HOST` and the route
-in `infra/cloudflare/wrangler.toml`, then either push to `main` or:
+in `infra/cloudflare/wrangler.toml`, then:
 
 ```bash
 cd infra/cloudflare
