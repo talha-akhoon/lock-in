@@ -112,9 +112,12 @@ def save_checkin(
             )
             if (
                 pre_start
-                and goal.tracking_type in {TrackingType.NUMERIC, TrackingType.COUNT}
+                and goal.tracking_type == TrackingType.NUMERIC
                 and goal.current_value is not None
             ):
+                # A number-to-target goal measures improvement from this
+                # snapshot. Running totals keep a zero baseline so the
+                # starting amount already counts as progress.
                 goal.baseline_value = goal.current_value
         db.flush()
     return checkin

@@ -18,6 +18,7 @@ from app.models.domain import (
     User,
 )
 from app.services.challenges import latest_challenge
+from app.services.mcp_tokens import authenticate as authenticate_mcp_token
 
 SESSION_COOKIE = "lockin_session"
 CSRF_COOKIE = "lockin_csrf"
@@ -38,10 +39,7 @@ def new_csrf_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def get_current_user(
-    token: str | None = Cookie(default=None, alias=SESSION_COOKIE),
-    db: Session = Depends(get_db),
-) -> User:
+def _user_from_session(token: str | None, db: Session) -> User:
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
     try:
@@ -55,8 +53,30 @@ def get_current_user(
     return user
 
 
+def get_session_user(
+    token: str | None = Cookie(default=None, alias=SESSION_COOKIE),
+    db: Session = Depends(get_db),
+) -> User:
+    """Cookie session only. Used for minting and revoking MCP tokens."""
+    return _user_from_session(token, db)
+
+
+def get_current_user(
+    authorization: str | None = Header(default=None),
+    token: str | None = Cookie(default=None, alias=SESSION_COOKIE),
+    db: Session = Depends(get_db),
+) -> User:
+    if authorization and authorization.lower().startswith("bearer "):
+        user = authenticate_mcp_token(db, authorization.split(" ", 1)[1].strip())
+        if not user:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
+        return user
+    return _user_from_session(token, db)
+
+
 def require_csrf(
     request: Request,
+    authorization: str | None = Header(default=None),
     csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE),
     csrf_header: str | None = Header(default=None, alias="X-CSRF-Token"),
 ) -> None:
@@ -64,8 +84,11 @@ def require_csrf(
 
     The session cookie is SameSite=Lax, which already blocks cross-site POSTs in
     modern browsers; this is the second layer that does not depend on that.
+    Bearer tokens are not cookies, so they skip this check.
     """
     if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    if authorization and authorization.lower().startswith("bearer "):
         return
     if (
         not csrf_cookie

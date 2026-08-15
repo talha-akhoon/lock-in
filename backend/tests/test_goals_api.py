@@ -57,8 +57,9 @@ def test_a_count_goal_can_start_from_an_existing_total(team_setup) -> None:
         json={**COUNT, "baseline_value": "2", "current_value": "2"},
     ).json()
 
-    assert Decimal(body["baseline_value"]) == Decimal(2)
+    assert Decimal(body["baseline_value"]) == 0
     assert Decimal(body["current_value"]) == Decimal(2)
+    assert body["progress_percentage"] == pytest.approx(40.0)
 
 
 def test_a_milestone_goal_has_no_numeric_fields(team_setup) -> None:

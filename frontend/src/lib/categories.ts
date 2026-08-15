@@ -50,7 +50,7 @@ export function categoryLabel(category: Category): string {
 
 export const TRACKING_LABELS: Record<string, string> = {
   MILESTONE: 'Done or not done',
-  NUMERIC: 'A number moving to a target',
-  COUNT: 'A running total',
-  MANUAL: 'A percentage you set yourself',
+  NUMERIC: 'Update the current figure',
+  COUNT: "Add today's amount",
+  MANUAL: 'Set a percentage yourself',
 }

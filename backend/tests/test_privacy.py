@@ -159,6 +159,29 @@ def test_a_private_sub_goal_is_redacted_from_a_visible_parent(
     assert profile["private_committed"] == 1
 
 
+def test_mcp_teammate_tools_hide_private_titles(
+    team_setup, private_goal, public_goal, db
+) -> None:
+    """The MCP path uses the same redaction as the HTTP profile and feed."""
+    from app.mcp import tools
+
+    team_setup.member_client.post(
+        f"/api/v1/goals/{private_goal.id}/progress",
+        json={"entry_date": "2026-08-14", "completed": True},
+    )
+    db.expire_all()
+
+    payloads = {
+        "standings": tools.get_team_standings(db, team_setup.admin),
+        "member": tools.get_member_progress(
+            db, team_setup.admin, user_id=team_setup.member.id
+        ),
+        "activity": tools.get_activity(db, team_setup.admin),
+    }
+    for path, payload in payloads.items():
+        assert SECRET not in json.dumps(payload, default=str), path
+
+
 def test_a_completion_notification_is_not_sent_for_a_private_goal(
     team_setup, private_goal
 ) -> None:

@@ -51,6 +51,7 @@ describe('goal wizard', () => {
 
     await user.click(await screen.findByRole('button', { name: /add a goal/i }))
     await user.type(screen.getByLabelText(/goal title/i), 'Read scripture daily')
+    await user.click(screen.getByRole('radio', { name: /done or not done/i }))
     await user.click(screen.getByRole('button', { name: 'Add goal' }))
 
     await waitFor(() => expect(fetchMock.sent('POST /me/goals')).toHaveLength(1))
@@ -69,18 +70,19 @@ describe('goal wizard', () => {
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: /add a goal/i }))
-    expect(screen.queryByLabelText(/target value/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /add today's amount/i })).toBeChecked()
+    expect(screen.getByLabelText(/target value/i)).toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText(/tracking method/i), 'NUMERIC')
+    await user.click(screen.getByRole('radio', { name: /update the current figure/i }))
     expect(screen.getByLabelText(/target value/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/where you are now/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/direction/i)).toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText(/tracking method/i), 'COUNT')
+    await user.click(screen.getByRole('radio', { name: /add today's amount/i }))
     expect(screen.getByLabelText(/target value/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/where you are now/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/direction/i)).not.toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText(/tracking method/i), 'MANUAL')
+    await user.click(screen.getByRole('radio', { name: /set a percentage yourself/i }))
     expect(screen.queryByLabelText(/target value/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/where you are now/i)).toBeInTheDocument()
   })
@@ -92,7 +94,7 @@ describe('goal wizard', () => {
 
     await user.click(await screen.findByRole('button', { name: /add a goal/i }))
     await user.type(screen.getByLabelText(/goal title/i), 'Deadlift')
-    await user.selectOptions(screen.getByLabelText(/tracking method/i), 'NUMERIC')
+    await user.click(screen.getByRole('radio', { name: /update the current figure/i }))
     await user.click(screen.getByRole('button', { name: 'Add goal' }))
 
     expect(await screen.findByText('Numeric goals need a target')).toBeInTheDocument()
@@ -183,11 +185,11 @@ describe('goal wizard', () => {
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: /add a goal/i }))
-    expect(screen.queryByText(/how you will know you are done/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/what check-in will ask/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'What do these tracking options mean?' }))
-    expect(screen.getByText(/how you will know you are done/i)).toBeInTheDocument()
-    expect(screen.getByText(/150 pages of reading/i)).toBeInTheDocument()
+    expect(screen.getByText(/what check-in will ask/i)).toBeInTheDocument()
+    expect(screen.getByText(/not for a lift, a weight, or a time/i)).toBeInTheDocument()
   })
 
   it('explains what a step is from the goal card', async () => {

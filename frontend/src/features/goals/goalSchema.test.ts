@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { emptyGoalForm, goalFormSchema, toGoalInput, usesNumericFields } from './goalSchema'
+import {
+  defaultTrackingType,
+  emptyGoalForm,
+  goalFormSchema,
+  toGoalInput,
+  usesNumericFields,
+} from './goalSchema'
 
-const base = { ...emptyGoalForm('PHYSICAL'), title: 'Deadlift 120kg' }
+const base = {
+  ...emptyGoalForm('PHYSICAL'),
+  title: 'Deadlift 120kg',
+  tracking_type: 'MILESTONE' as const,
+}
 
 function parse(overrides: Partial<typeof base>) {
   return goalFormSchema.safeParse({ ...base, ...overrides })
@@ -27,6 +37,12 @@ describe('goal form validation', () => {
   it('rejects a count goal whose target is not above zero', () => {
     expect(parse({ tracking_type: 'COUNT', target_value: '0' }).success).toBe(false)
     expect(parse({ tracking_type: 'COUNT', target_value: '30' }).success).toBe(true)
+  })
+
+  it('defaults physical goals to the current figure and religious ones to a daily amount', () => {
+    expect(defaultTrackingType('PHYSICAL')).toBe('NUMERIC')
+    expect(defaultTrackingType('RELIGIOUS')).toBe('COUNT')
+    expect(defaultTrackingType('CAREER')).toBe('MILESTONE')
   })
 
   it('only shows numeric fields for the types that use them', () => {
@@ -67,7 +83,7 @@ describe('goal payload construction', () => {
     })
   })
 
-  it('keeps a count goal starting total as the baseline', () => {
+  it('counts a running-total starting amount as progress from zero', () => {
     const values = goalFormSchema.parse({
       ...base,
       tracking_type: 'COUNT',
@@ -75,7 +91,7 @@ describe('goal payload construction', () => {
       target_value: '12',
     })
     expect(toGoalInput(values)).toMatchObject({
-      baseline_value: 2,
+      baseline_value: 0,
       current_value: 2,
       target_value: 12,
     })

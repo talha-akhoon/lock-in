@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     challenge_timezone: str = "Europe/London"
     frontend_dist: str = "../frontend/dist"
     secure_cookies: bool = False
+    # Comma-separated Host values the MCP endpoint accepts, or * to skip the
+    # DNS-rebinding check. Bearer auth is the real gate.
+    mcp_allowed_hosts: str = "*"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

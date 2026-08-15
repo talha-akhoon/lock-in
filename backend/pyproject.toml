@@ -10,6 +10,7 @@ dependencies = [
     "email-validator>=2.3.0",
     "fastapi>=0.141.1",
     "google-auth>=2.56.3",
+    "mcp>=2.0.0",
     "psycopg[binary]>=3.3.4",
     "pydantic-settings>=2.15.0",
     "pyjwt>=2.13.0",

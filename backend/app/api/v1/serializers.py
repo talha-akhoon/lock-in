@@ -144,6 +144,13 @@ def member_row(member: TeamMember) -> dict:
     }
 
 
+def member_public(member: TeamMember) -> dict:
+    """Roster identity without email — what an LLM is allowed to see."""
+    row = member_row(member)
+    row.pop("email", None)
+    return row
+
+
 def notification_row(row) -> dict:
     return {
         "id": row.id,

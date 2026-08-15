@@ -152,6 +152,14 @@ textarea { min-height: 85px; resize: vertical; }
 .checks input[type="checkbox"] { width: auto; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 
+.tracking-choices { border: 0; padding: 0; margin: 0 0 16px; }
+.tracking-choices legend { display: flex; align-items: center; gap: 8px; padding: 0; margin-bottom: 8px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.tracking-choices > label { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; margin: 0 0 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #141816; color: var(--ink); font-size: 13px; font-weight: 500; cursor: pointer; }
+.tracking-choices > label.current { border-color: #536349; background: var(--acid-dark); }
+.tracking-choices > label input { width: auto; margin-top: 3px; accent-color: var(--acid); }
+.tracking-choices > label span { display: flex; flex-direction: column; gap: 3px; }
+.tracking-choices > label b { font-size: 14px; font-weight: 750; }
+.tracking-choices > label em { color: #9aa894; font-style: normal; font-size: 12px; }
 .field { margin-bottom: 16px; }
 .field-head { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 650; margin-bottom: 7px; }
 .field-head span { flex: 1; }
@@ -424,6 +432,20 @@ textarea { min-height: 85px; resize: vertical; }
 .audit-row p { color: var(--muted); font-size: 11px; margin: 2px 0 0; word-break: break-word; }
 .audit-row time { color: var(--muted); font-size: 11px; white-space: nowrap; }
 .invite-code b { word-break: break-all; }
+.mcp-secret { display: grid; gap: 12px; }
+.mcp-secret b { font-size: 15px; letter-spacing: 0; }
+.mcp-config {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  background: var(--panel-2);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+}
+.mcp-token-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) 44px; align-items: center; gap: 14px; }
 .code-input { text-align: center; font-size: 22px; letter-spacing: .16em; text-transform: uppercase; }
 .heatmap-grid { overflow-x: auto; }
 /* Faint but legible: the days still to come are the point of a six-month graph. */

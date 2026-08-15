@@ -13,6 +13,9 @@ from app.models.domain import (
     ChallengeParticipant,
     ChallengeStatus,
     ForfeitObligation,
+    Goal,
+    GoalProgressEntry,
+    GoalVisibility,
     NotificationType,
     ParticipantStatus,
     User,
@@ -113,6 +116,52 @@ def summary(challenge: Challenge) -> dict:
         "total_days": challenge_total_days(challenge),
         "days_remaining": challenge_days_remaining(challenge),
     }
+
+
+def activity_entries(
+    db: Session,
+    *,
+    challenge_id: uuid.UUID,
+    viewer_id: uuid.UUID,
+    limit: int = 100,
+) -> list[dict]:
+    """Recent progress entries. Private goals appear only to their owner."""
+    rows = db.execute(
+        select(GoalProgressEntry, Goal, User)
+        .join(Goal, Goal.id == GoalProgressEntry.goal_id)
+        .join(
+            ChallengeParticipant,
+            ChallengeParticipant.id == Goal.challenge_participant_id,
+        )
+        .join(User, User.id == GoalProgressEntry.user_id)
+        .where(
+            ChallengeParticipant.challenge_id == challenge_id,
+            (Goal.visibility == GoalVisibility.TEAM)
+            | (ChallengeParticipant.user_id == viewer_id),
+        )
+        .order_by(GoalProgressEntry.created_at.desc())
+        .limit(min(limit, 200))
+    ).all()
+    return [
+        {
+            "id": entry.id,
+            "user_id": author.id,
+            "display_name": author.display_name,
+            "avatar_url": author.avatar_url,
+            "goal_id": goal.id,
+            "goal_title": goal.title,
+            "goal_category": goal.category,
+            "unit": goal.unit,
+            "entry_date": entry.entry_date,
+            "numeric_value": entry.numeric_value,
+            "numeric_delta": entry.numeric_delta,
+            "manual_percentage": entry.manual_percentage,
+            "completed": entry.completed,
+            "note": entry.note,
+            "created_at": entry.created_at,
+        }
+        for entry, goal, author in rows
+    ]
 
 
 def active_participants(

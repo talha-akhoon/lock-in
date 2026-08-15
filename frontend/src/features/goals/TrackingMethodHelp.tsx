@@ -1,7 +1,13 @@
-import { TRACKING_HELP, TRACKING_HELP_INTRO } from '../../lib/help'
-import { TRACKING_TYPES, type TrackingType } from '../../lib/types'
+import { TRACKING_HELP, TRACKING_HELP_INTRO, trackingExample } from '../../lib/help'
+import { TRACKING_TYPES, type Category, type TrackingType } from '../../lib/types'
 
-export function TrackingMethodHelp({ selected }: { selected?: TrackingType }) {
+export function TrackingMethodHelp({
+  selected,
+  category,
+}: {
+  selected?: TrackingType
+  category?: Category
+}) {
   return (
     <>
       <p>{TRACKING_HELP_INTRO}</p>
@@ -11,8 +17,9 @@ export function TrackingMethodHelp({ selected }: { selected?: TrackingType }) {
           return (
             <li key={type} className={type === selected ? 'current' : undefined}>
               <b>{item.title}</b>
-              <span>{item.body}</span>
-              <em>e.g. {item.example}</em>
+              <span>{item.checkin}</span>
+              <span>{item.avoid}</span>
+              <em>e.g. {trackingExample(type, category)}</em>
             </li>
           )
         })}

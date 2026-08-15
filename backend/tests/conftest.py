@@ -40,6 +40,7 @@ TABLES = (
     "challenge_participants",
     "challenges",
     "invitations",
+    "mcp_tokens",
     "team_members",
     "teams",
     "users",

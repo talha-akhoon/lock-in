@@ -28,7 +28,7 @@ def test_upgrade_is_idempotent(engine: Engine) -> None:
     command.upgrade(_alembic_config(TEST_DATABASE_URL), "head")
     with engine.connect() as conn:
         version = conn.execute(text("select version_num from alembic_version")).scalar()
-    assert version == "0003"
+    assert version == "0004"
 
 
 def test_goal_category_is_religious_not_islamic(engine: Engine) -> None:

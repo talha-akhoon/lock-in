@@ -28,6 +28,7 @@ import type {
   Role,
   TeamMember,
   CheckinPayload,
+  McpToken,
 } from '../lib/types'
 
 export const keys = {
@@ -48,6 +49,7 @@ export const keys = {
   invitations: ['invitations'] as const,
   audit: ['audit'] as const,
   participants: ['participants'] as const,
+  mcpTokens: ['mcp-tokens'] as const,
 }
 
 export function useAuth(): UseQueryResult<AuthMe> {
@@ -364,6 +366,29 @@ export function useMarkAllNotificationsRead() {
   return useMutation({
     mutationFn: () => post('/me/notifications/read-all'),
     onSuccess: () => client.invalidateQueries({ queryKey: keys.notifications }),
+  })
+}
+
+export function useMcpTokens() {
+  return useQuery({
+    queryKey: keys.mcpTokens,
+    queryFn: () => api<McpToken[]>('/me/mcp-tokens'),
+  })
+}
+
+export function useCreateMcpToken() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => post<McpToken>('/me/mcp-tokens', { name }),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.mcpTokens }),
+  })
+}
+
+export function useRevokeMcpToken() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (tokenId: string) => del(`/me/mcp-tokens/${tokenId}`),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.mcpTokens }),
   })
 }
 

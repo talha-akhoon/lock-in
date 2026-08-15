@@ -3,7 +3,8 @@ import { useForm } from 'react-hook-form'
 import { InfoTip } from '../../components/InfoTip'
 import { Modal } from '../../components/Modal'
 import { FieldError } from '../../components/primitives'
-import { CATEGORY_META, TRACKING_LABELS } from '../../lib/categories'
+import { CATEGORY_META } from '../../lib/categories'
+import { TRACKING_HELP, trackingExample } from '../../lib/help'
 import { TrackingMethodHelp } from './TrackingMethodHelp'
 import { CATEGORIES, TRACKING_TYPES, type Category, type Goal, type GoalInput } from '../../lib/types'
 import {
@@ -28,7 +29,9 @@ function valuesFromGoal(goal: Goal): GoalFormValues {
     description: goal.description ?? '',
     tracking_type: goal.tracking_type,
     // The API pads decimals to four places; a form field should show 120, not 120.0000.
-    baseline_value: trimDecimal(goal.baseline_value),
+    baseline_value: trimDecimal(
+      goal.tracking_type === 'COUNT' ? (goal.current_value ?? goal.baseline_value) : goal.baseline_value,
+    ),
     target_value: trimDecimal(goal.target_value),
     manual_progress_percentage:
       goal.manual_progress_percentage == null ? '' : String(goal.manual_progress_percentage),
@@ -74,6 +77,7 @@ export function GoalForm({
   })
 
   const trackingType = watch('tracking_type')
+  const selectedCategory = watch('category')
   const showNumbers = usesNumericFields(trackingType)
   const title = goal ? 'Edit goal' : parent ? `Add a step to “${parent.title}”` : 'Add a goal'
 
@@ -117,23 +121,27 @@ export function GoalForm({
           <FieldError message={errors.description?.message} />
         </label>
 
-        <div className="field">
-          <InfoTip label="What do these tracking options mean?" heading="Tracking method">
-            <TrackingMethodHelp selected={trackingType} />
-          </InfoTip>
-          <select
-            id="goal-tracking"
-            aria-label="Tracking method"
-            {...register('tracking_type')}
-            disabled={lockedFields}
-          >
-            {TRACKING_TYPES.map((item) => (
-              <option key={item} value={item}>
-                {TRACKING_LABELS[item]}
-              </option>
-            ))}
-          </select>
-        </div>
+        <fieldset className="field tracking-choices" disabled={lockedFields}>
+          <legend>
+            How will you track this?
+            <InfoTip label="What do these tracking options mean?" heading="Tracking method">
+              <TrackingMethodHelp selected={trackingType} category={selectedCategory} />
+            </InfoTip>
+          </legend>
+          {TRACKING_TYPES.map((item) => {
+            const copy = TRACKING_HELP[item]
+            return (
+              <label key={item} className={item === trackingType ? 'current' : undefined}>
+                <input type="radio" value={item} {...register('tracking_type')} />
+                <span>
+                  <b>{copy.title}</b>
+                  <span>{copy.checkin}</span>
+                  <em>e.g. {trackingExample(item, selectedCategory)}</em>
+                </span>
+              </label>
+            )
+          })}
+        </fieldset>
 
         {showNumbers && (
           <>
@@ -161,7 +169,11 @@ export function GoalForm({
                 <FieldError message={errors.target_value?.message} />
               </label>
             </div>
-            <p className="hint">Progress is measured from where you are now to the target.</p>
+            <p className="hint">
+              {trackingType === 'COUNT'
+                ? 'What you already have counts toward the target.'
+                : 'Progress is how far you move from here to the target.'}
+            </p>
             <div className="form-row">
               <label>
                 Unit

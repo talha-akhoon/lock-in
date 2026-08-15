@@ -3,7 +3,6 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.v1 import serializers
@@ -20,9 +19,6 @@ from app.models.domain import (
     Challenge,
     ChallengeParticipant,
     ChallengeStatus,
-    Goal,
-    GoalProgressEntry,
-    GoalVisibility,
     TeamMember,
     User,
 )
@@ -240,42 +236,9 @@ def activity_feed(
 ) -> list[dict]:
     """Recent progress entries. Private goals appear only to their owner."""
     challenge_service.require_team_challenge(db, challenge_id, member.team_id)
-    rows = db.execute(
-        select(GoalProgressEntry, Goal, User)
-        .join(Goal, Goal.id == GoalProgressEntry.goal_id)
-        .join(
-            ChallengeParticipant,
-            ChallengeParticipant.id == Goal.challenge_participant_id,
-        )
-        .join(User, User.id == GoalProgressEntry.user_id)
-        .where(
-            ChallengeParticipant.challenge_id == challenge_id,
-            (Goal.visibility == GoalVisibility.TEAM)
-            | (ChallengeParticipant.user_id == user.id),
-        )
-        .order_by(GoalProgressEntry.created_at.desc())
-        .limit(min(limit, 200))
-    ).all()
-    return [
-        {
-            "id": entry.id,
-            "user_id": author.id,
-            "display_name": author.display_name,
-            "avatar_url": author.avatar_url,
-            "goal_id": goal.id,
-            "goal_title": goal.title,
-            "goal_category": goal.category,
-            "unit": goal.unit,
-            "entry_date": entry.entry_date,
-            "numeric_value": entry.numeric_value,
-            "numeric_delta": entry.numeric_delta,
-            "manual_percentage": entry.manual_percentage,
-            "completed": entry.completed,
-            "note": entry.note,
-            "created_at": entry.created_at,
-        }
-        for entry, goal, author in rows
-    ]
+    return challenge_service.activity_entries(
+        db, challenge_id=challenge_id, viewer_id=user.id, limit=limit
+    )
 
 
 @router.get("/challenges/{challenge_id}/outcomes")

@@ -49,6 +49,20 @@ def test_equal_baseline_and_target_does_not_divide_by_zero() -> None:
     assert calculate_goal_progress(goal) == 100
 
 
+def test_a_running_total_counts_the_starting_amount() -> None:
+    goal = Goal(
+        title="Read 150",
+        category="RELIGIOUS",
+        tracking_type=TrackingType.COUNT,
+        baseline_value=Decimal(2),
+        current_value=Decimal(2),
+        target_value=Decimal(150),
+        target_direction=TargetDirection.AT_LEAST,
+        required=True,
+    )
+    assert round(calculate_goal_progress(goal), 1) == 1.3
+
+
 def test_manual_progress_is_clamped() -> None:
     goal = Goal(
         title="Prototype",

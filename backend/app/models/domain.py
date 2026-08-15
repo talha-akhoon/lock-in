@@ -113,6 +113,23 @@ class User(TimestampMixin, Base):
     )
 
 
+class McpToken(TimestampMixin, Base):
+    """Personal access token for the MCP endpoint. Only the hash is stored."""
+
+    __tablename__ = "mcp_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(80))
+    token_hash: Mapped[str] = mapped_column(String(255))
+    prefix: Mapped[str] = mapped_column(String(16), index=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    user: Mapped[User] = relationship()
+
+
 class Team(TimestampMixin, Base):
     __tablename__ = "teams"
 

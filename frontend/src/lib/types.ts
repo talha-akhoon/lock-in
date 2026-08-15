@@ -208,6 +208,16 @@ export type Invitation = {
   code?: string
 }
 
+export type McpToken = {
+  id: string
+  name: string
+  prefix: string
+  last_used_at: string | null
+  created_at: string
+  /** Present only in the create response; the plaintext token is never stored. */
+  token?: string
+}
+
 export type ProgressEntry = {
   id: string
   entry_date: string

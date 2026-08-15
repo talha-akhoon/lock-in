@@ -19,7 +19,9 @@ the commitment, the daily record, and the reckoning at the end.
    `UPCOMING`, or `ACTIVE`). Completed challenges stay visible as history.
 4. **Write goals.** Five areas: Religious, Physical, Career, Business, Personal.
    Each goal has a tracking method (see below). When you add a goal, record
-   where you are now — that is the baseline. Goals can be required (they
+   where you are now. On a running total that amount already counts; on a
+   number-to-target goal it is the line progress is measured from. Goals can
+   be required (they
    decide the forfeit) or optional (they only affect your percentage). A goal
    can be visible to the team or private — private goals still count, but
    teammates see aggregates only, never the title or values.
@@ -31,7 +33,12 @@ the commitment, the daily record, and the reckoning at the end.
    that snapshot.
 7. **Check in.** Each day you update the goals that moved. Streaks and a
    heatmap use the challenge's own timezone.
-8. **Finish.** When the end date passes, required goals are scored. Anyone who
+8. **Optional: connect your own LLM.** Settings issues a personal token for
+   Claude, Cursor or similar. The model can read your goals, see teammates'
+   team-visible progress, and log today's check-in. LockIn stays the source of
+   truth. Connecting shares your view of the team with that LLM provider.
+   Private goals stay in LockIn.
+9. **Finish.** When the end date passes, required goals are scored. Anyone who
    fell short owes the forfeit to each other member. The results screen lists
    who pays whom.
 
@@ -39,13 +46,13 @@ the commitment, the daily record, and the reckoning at the end.
 
 ### Goals
 
-- Four tracking methods — pick how you will *know* you are done:
+- Four tracking methods — pick what check-in will ask:
   - **Done or not done** — a single tick (get promoted, ship the app).
-  - **A number moving to a target** — record the current figure (deadlift
-    180kg, body fat to 12%).
-  - **A running total** — add what you did today (150 pages of reading, 12
-    books).
-  - **A percentage you set yourself** — type 0–100 when you think you have
+  - **Update the current figure** — what is the number now (deadlift 180kg,
+    body fat to 12%). Not for sessions or kilometres you add up.
+  - **Add today's amount** — how much you did today (150 pages, 100 gym
+    sessions). Not for a lift, weight, or time you re-measure.
+  - **Set a percentage yourself** — type 0–100 when you think you have
     moved (a side project you cannot count cleanly).
 - **Steps** — optional one-level sub-goals. You check in on the steps; the
   parent averages its required children. Use this when the work is a few named
@@ -54,12 +61,28 @@ the commitment, the daily record, and the reckoning at the end.
 
 ### Daily accountability
 
-- **Starting point** — when you add a goal, set where you are now. That is
-  the baseline. Before kick-off you can still update it from Check-In.
+- **Starting point** — when you add a goal, set where you are now. On a
+  running total that amount already counts; on a number-to-target goal it is
+  the line progress is measured from. Before kick-off you can still update
+  it from Check-In.
 - Date-stamped check-ins, including a note.
 - Per-member heatmap and streak on the profile.
 - Team dashboard with everyone's progress (private titles redacted).
 - Activity feed of recent updates.
+
+### MCP
+
+A remote MCP endpoint at `/mcp` so a member can connect their own LLM (Claude,
+Cursor, and similar) with a personal token from Settings.
+
+- Read your own goals and progress, including private ones.
+- Read the team standings, a teammate's profile, and the activity feed — the
+  same privacy as the app. Private titles, descriptions, targets and values
+  are never sent. Team-visible teammate goals are included on purpose, so the
+  model can compare and motivate.
+- Log today's check-in. The model cannot create goals or edit locked targets.
+- The token is shown once. Revoke it from Settings if it leaks. Connecting
+  shares that member's view of the team with their LLM provider.
 
 ### Team and admin
 
@@ -73,15 +96,6 @@ the commitment, the daily record, and the reckoning at the end.
 
 In-app only (no email): goal-lock warnings, challenge milestones (100 / 30 / 7
 days), challenge complete, a teammate finishing a goal, and a member joining.
-
-## Later
-
-- **MCP server** (not built) — a thin pipe so a member can connect their own
-  LLM (Claude, ChatGPT, and similar) to log today’s check-in and read their
-  own goals and progress for planning. LockIn stays the source of truth; the
-  model does the coaching. Same lock and privacy rules as the app. Connecting
-  shares that member’s goal data with their LLM provider. Do not expose
-  teammate private goals or let the model edit locked targets.
 
 ## Local setup
 
@@ -221,7 +235,8 @@ backend/app/
   api/v1/routes/          one module per resource; handlers stay thin
   api/v1/serializers.py   response shaping, including the privacy boundary
   services/               goals, check-ins, challenges, teams, notifications,
-                          audit, progress, clock
+                          audit, progress, clock, MCP tokens
+  mcp/                    Streamable HTTP tools at /mcp; same privacy as the app
   models/domain.py        SQLAlchemy models
   dependencies/           auth, membership, CSRF
 

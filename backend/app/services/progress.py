@@ -25,7 +25,13 @@ def calculate_goal_progress(goal: Goal) -> float:
     if goal.tracking_type == TrackingType.MILESTONE:
         return 0.0
 
-    baseline = goal.baseline_value or Decimal(0)
+    # A running total already includes work done before the challenge.
+    # Measuring from a raised baseline would hide that as 0%.
+    baseline = (
+        Decimal(0)
+        if goal.tracking_type == TrackingType.COUNT
+        else (goal.baseline_value or Decimal(0))
+    )
     current = goal.current_value if goal.current_value is not None else baseline
     target = goal.target_value
     if target is None:

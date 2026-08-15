@@ -358,7 +358,7 @@ def test_a_starting_point_becomes_the_baseline(
     assert numeric.current_value == Decimal("95.0000")
     assert numeric.baseline_value == Decimal("95.0000")
     assert count.current_value == Decimal("2.0000")
-    assert count.baseline_value == Decimal("2.0000")
+    assert count.baseline_value == Decimal("0.0000")
 
 
 def test_a_future_date_cannot_be_written_before_kick_off(

@@ -51,11 +51,19 @@ export const goalFormSchema = z
 export type GoalFormValues = z.input<typeof goalFormSchema>
 export type GoalFormParsed = z.output<typeof goalFormSchema>
 
+export function defaultTrackingType(
+  category: GoalFormValues['category'],
+): GoalFormValues['tracking_type'] {
+  if (category === 'PHYSICAL') return 'NUMERIC'
+  if (category === 'RELIGIOUS') return 'COUNT'
+  return 'MILESTONE'
+}
+
 export const emptyGoalForm = (category: GoalFormValues['category']): GoalFormValues => ({
   category,
   title: '',
   description: '',
-  tracking_type: 'MILESTONE',
+  tracking_type: defaultTrackingType(category),
   baseline_value: '',
   target_value: '',
   manual_progress_percentage: '',
@@ -73,7 +81,7 @@ export function toGoalInput(
   const numeric = values.tracking_type === 'NUMERIC'
   const count = values.tracking_type === 'COUNT'
   const manual = values.tracking_type === 'MANUAL'
-  const baseline = numeric || count ? (values.baseline_value ?? 0) : null
+  const starting = values.baseline_value ?? 0
   const startingPercent =
     values.manual_progress_percentage == null
       ? 0
@@ -84,9 +92,9 @@ export function toGoalInput(
     title: values.title.trim(),
     description: values.description?.trim() ? values.description.trim() : null,
     tracking_type: values.tracking_type,
-    baseline_value: baseline,
+    baseline_value: numeric ? starting : count ? 0 : null,
     target_value: numeric || count ? (values.target_value ?? null) : null,
-    current_value: baseline,
+    current_value: numeric || count ? starting : null,
     unit: numeric || count ? (values.unit?.trim() || null) : null,
     target_direction: numeric ? values.target_direction : count ? 'AT_LEAST' : null,
     manual_progress_percentage: manual ? startingPercent : null,

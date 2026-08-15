@@ -107,10 +107,15 @@ class GoalBase(BaseModel):
         elif self.tracking_type == TrackingType.COUNT:
             if self.target_value is None or self.target_value <= 0:
                 raise ValueError("Count goals need a positive target")
-            if self.baseline_value is None:
-                self.baseline_value = Decimal(0)
-            if self.current_value is None:
-                self.current_value = self.baseline_value
+            # Already-done work counts. The zero point stays 0 so 2 of 150 is
+            # progress, not a new starting line.
+            starting = (
+                self.current_value
+                if self.current_value is not None
+                else (self.baseline_value or Decimal(0))
+            )
+            self.baseline_value = Decimal(0)
+            self.current_value = starting
             self.target_direction = TargetDirection.AT_LEAST
         elif self.tracking_type == TrackingType.MANUAL:
             if self.manual_progress_percentage is None:
