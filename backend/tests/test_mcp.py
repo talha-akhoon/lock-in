@@ -7,8 +7,8 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.mcp import tools
-from app.models.domain import GoalVisibility, McpToken
-from app.schemas.domain import CheckinUpdate
+from app.models.domain import Goal, GoalVisibility, McpToken
+from app.schemas.domain import CheckinUpdate, GoalCreate
 
 SECRET = "Therapy every week"
 
@@ -137,6 +137,60 @@ def test_log_checkin_cannot_update_another_members_goal(
             db,
             team_setup.member,
             updates=[CheckinUpdate(goal_id=admin_goal.id, completed=True)],
+        )
+    assert exc.value.status_code == 404
+
+
+def test_add_goal_creates_a_goal_for_the_caller(team_setup, db) -> None:
+    created = tools.add_goal(
+        db,
+        team_setup.admin,
+        payload=GoalCreate(
+            category="PHYSICAL",
+            title="Run a 10k",
+            tracking_type="MILESTONE",
+        ),
+    )
+
+    assert created["title"] == "Run a 10k"
+    stored = db.get(Goal, created["id"])
+    assert stored is not None
+    assert stored.challenge_participant_id == team_setup.admin_participant.id
+
+
+def test_add_goal_is_rejected_once_the_commitment_locks(team_setup, db) -> None:
+    participant = team_setup.admin_participant
+    participant.goals_locked_at = participant.goals_due_at
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        tools.add_goal(
+            db,
+            team_setup.admin,
+            payload=GoalCreate(
+                category="PHYSICAL",
+                title="Too late",
+                tracking_type="MILESTONE",
+            ),
+        )
+    assert exc.value.status_code == 409
+
+
+def test_add_goal_rejects_a_parent_owned_by_a_teammate(
+    team_setup, make_goal, db
+) -> None:
+    member_goal = make_goal(team_setup.member_participant, title="Squat 140kg")
+
+    with pytest.raises(HTTPException) as exc:
+        tools.add_goal(
+            db,
+            team_setup.admin,
+            payload=GoalCreate(
+                category="PHYSICAL",
+                title="Child of a teammate's goal",
+                tracking_type="MILESTONE",
+                parent_goal_id=member_goal.id,
+            ),
         )
     assert exc.value.status_code == 404
 

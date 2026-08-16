@@ -94,7 +94,8 @@ export function SettingsPage() {
         <p className="hint">
           Connecting shares your view — including teammates&apos; team-visible goals — with your LLM
           provider. Private goals stay in LockIn. The model can read your goals, see team-visible
-          progress, and log today&apos;s check-in.
+          progress, add a goal before your commitment locks, and log today&apos;s check-in. It
+          cannot edit existing goals or change locked targets.
         </p>
         <h3>ChatGPT</h3>
         <p className="hint">
