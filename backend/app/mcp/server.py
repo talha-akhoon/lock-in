@@ -6,6 +6,7 @@ import json
 from collections.abc import Callable
 from datetime import date
 from typing import Any
+from uuid import UUID
 
 from fastapi import HTTPException
 from mcp.server import MCPServer
@@ -25,7 +26,7 @@ from app.models.domain import (
     TargetDirection,
     TrackingType,
 )
-from app.schemas.domain import CheckinUpdate, GoalCreate
+from app.schemas.domain import CheckinUpdate, GoalCreate, GoalUpdate
 from app.services.mcp_tokens import authenticate as authenticate_mcp_token
 from app.services.oauth import origin_from_headers, www_authenticate
 
@@ -46,7 +47,15 @@ fails once goals are locked. It skips the goal wizard's review step, so before
 you call it confirm with them: the title, the tracking type and starting
 point, whether the goal is required or optional (required goals decide the
 forfeit, and it defaults to required), and whether it is TEAM-visible or
-PRIVATE. Do not edit existing goals or change locked targets.
+PRIVATE.
+
+Use update_goal to change the caller's own goal; pass only the fields you
+want to change. Confirm the change first, the same way as add_goal: if you are
+flipping required (which decides the forfeit) or visibility, confirm that
+explicitly, and confirm the title, tracking type or starting point when those
+are what you are changing. Once a commitment is locked the wording and targets
+are final — only visibility and ordering can still change, and any other edit
+is rejected.
 """
 
 
@@ -108,8 +117,6 @@ def get_member_progress(
     parsed = None
     if user_id:
         try:
-            from uuid import UUID
-
             parsed = UUID(user_id)
         except ValueError as exc:
             raise ToolError("user_id must be a UUID") from exc
@@ -179,6 +186,67 @@ def add_goal(
     except ValidationError as exc:
         raise ToolError(_validation_message(exc)) from exc
     return _run(impl.add_goal, payload=payload)
+
+
+@mcp.tool()
+def update_goal(
+    goal_id: str,
+    title: str | None = None,
+    description: str | None = None,
+    category: GoalCategory | None = None,
+    tracking_type: TrackingType | None = None,
+    target_value: float | None = None,
+    target_direction: TargetDirection | None = None,
+    baseline_value: float | None = None,
+    current_value: float | None = None,
+    unit: str | None = None,
+    manual_progress_percentage: int | None = None,
+    visibility: GoalVisibility | None = None,
+    required: bool | None = None,
+    sort_order: int | None = None,
+) -> dict:
+    """Edit one of the caller's own goals. Pass goal_id (from get_my_goals) and
+    only the fields you want to change; anything you leave out is untouched.
+    Confirm the change with the caller first — especially required (it decides
+    the forfeit) and visibility.
+
+    Changing tracking_type also requires the fields that type needs, since a
+    partial patch is not otherwise checked: NUMERIC needs target_value and
+    target_direction, COUNT a positive target_value, MANUAL a
+    manual_progress_percentage. An incomplete type change is rejected.
+
+    Works only while the commitment is unlocked. Once locked, the title,
+    targets, tracking type and required flag are final and any such edit is
+    rejected — only visibility and sort_order can still change. To clear a
+    field back to empty, edit the goal in the LockIn app instead.
+    """
+    try:
+        parsed_id = UUID(goal_id)
+    except ValueError as exc:
+        raise ToolError("goal_id must be a UUID") from exc
+    fields = {
+        "title": title,
+        "description": description,
+        "category": category,
+        "tracking_type": tracking_type,
+        "target_value": target_value,
+        "target_direction": target_direction,
+        "baseline_value": baseline_value,
+        "current_value": current_value,
+        "unit": unit,
+        "manual_progress_percentage": manual_progress_percentage,
+        "visibility": visibility,
+        "required": required,
+        "sort_order": sort_order,
+    }
+    provided = {key: value for key, value in fields.items() if value is not None}
+    if not provided:
+        raise ToolError("Pass at least one field to change")
+    try:
+        payload = GoalUpdate(**provided)
+    except ValidationError as exc:
+        raise ToolError(_validation_message(exc)) from exc
+    return _run(impl.update_goal, goal_id=parsed_id, payload=payload)
 
 
 @mcp.tool()
