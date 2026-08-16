@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.mcp import tools
 from app.models.domain import Goal, GoalVisibility, McpToken
-from app.schemas.domain import CheckinUpdate, GoalCreate
+from app.schemas.domain import CheckinUpdate, GoalCreate, GoalUpdate
 
 SECRET = "Therapy every week"
 
@@ -191,6 +191,69 @@ def test_add_goal_rejects_a_parent_owned_by_a_teammate(
                 tracking_type="MILESTONE",
                 parent_goal_id=member_goal.id,
             ),
+        )
+    assert exc.value.status_code == 404
+
+
+def test_update_goal_changes_only_the_fields_passed(team_setup, make_goal, db) -> None:
+    goal = make_goal(
+        team_setup.admin_participant, title="Deadlift 120kg", target_value=120
+    )
+
+    updated = tools.update_goal(
+        db,
+        team_setup.admin,
+        goal_id=goal.id,
+        payload=GoalUpdate(title="Deadlift 130kg"),
+    )
+
+    assert updated["title"] == "Deadlift 130kg"
+    # target_value was not passed, so it must be untouched.
+    assert db.get(Goal, goal.id).target_value == 120
+
+
+def test_update_goal_rejects_a_locked_immutable_edit(team_setup, make_goal, db) -> None:
+    goal = make_goal(team_setup.admin_participant, title="Deadlift 120kg")
+    participant = team_setup.admin_participant
+    participant.goals_locked_at = participant.goals_due_at
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        tools.update_goal(
+            db,
+            team_setup.admin,
+            goal_id=goal.id,
+            payload=GoalUpdate(title="Sneaky rename"),
+        )
+    assert exc.value.status_code == 409
+
+
+def test_update_goal_allows_visibility_change_after_lock(
+    team_setup, make_goal, db
+) -> None:
+    goal = make_goal(team_setup.admin_participant, visibility=GoalVisibility.TEAM)
+    participant = team_setup.admin_participant
+    participant.goals_locked_at = participant.goals_due_at
+    db.commit()
+
+    updated = tools.update_goal(
+        db,
+        team_setup.admin,
+        goal_id=goal.id,
+        payload=GoalUpdate(visibility=GoalVisibility.PRIVATE),
+    )
+    assert updated["visibility"] == GoalVisibility.PRIVATE
+
+
+def test_update_goal_cannot_touch_a_teammates_goal(team_setup, make_goal, db) -> None:
+    member_goal = make_goal(team_setup.member_participant, title="Squat 140kg")
+
+    with pytest.raises(HTTPException) as exc:
+        tools.update_goal(
+            db,
+            team_setup.admin,
+            goal_id=member_goal.id,
+            payload=GoalUpdate(title="Hijacked"),
         )
     assert exc.value.status_code == 404
 

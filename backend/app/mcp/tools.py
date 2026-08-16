@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.v1 import serializers
 from app.mcp.context import require_challenge, require_membership, require_participant
 from app.models.domain import ChallengeParticipant, Team, User
-from app.schemas.domain import CheckinCreate, CheckinUpdate, GoalCreate
+from app.schemas.domain import CheckinCreate, CheckinUpdate, GoalCreate, GoalUpdate
 from app.services import challenges as challenge_service
 from app.services import checkins as checkin_service
 from app.services import goals as goal_service
@@ -193,6 +193,17 @@ def add_goal(db: Session, user: User, *, payload: GoalCreate) -> dict:
     challenge = require_challenge(db, membership)
     participant = require_participant(db, challenge, user)
     goal = goal_service.create_goal(db, participant, payload)
+    return serializers.goal_detail(goal)
+
+
+def update_goal(
+    db: Session, user: User, *, goal_id: uuid.UUID, payload: GoalUpdate
+) -> dict:
+    membership = require_membership(db, user)
+    challenge = require_challenge(db, membership)
+    participant = require_participant(db, challenge, user)
+    goal = goal_service.require_goal(db, goal_id, participant)
+    goal_service.update_goal(db, participant, goal, payload)
     return serializers.goal_detail(goal)
 
 
