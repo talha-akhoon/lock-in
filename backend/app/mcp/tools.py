@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1 import serializers
 from app.mcp.context import require_challenge, require_membership, require_participant
-from app.models.domain import ChallengeParticipant, Team, User
+from app.models.domain import ChallengeParticipant, Team, TrackingType, User
 from app.schemas.domain import CheckinCreate, CheckinUpdate, GoalCreate, GoalUpdate
 from app.services import challenges as challenge_service
 from app.services import checkins as checkin_service
@@ -196,9 +196,46 @@ def add_goal(db: Session, user: User, *, payload: GoalCreate) -> dict:
     return serializers.goal_detail(goal)
 
 
+def _assert_tracking_change_valid(payload: GoalUpdate) -> None:
+    """A partial patch can set a tracking_type without the fields it needs.
+
+    GoalUpdate has no equivalent of GoalCreate.validate_tracking_fields, so
+    without this an LLM could switch a goal to NUMERIC/COUNT/MANUAL and leave
+    it with no target — a goal whose progress can never be computed. Only guard
+    when tracking_type is actually being changed.
+    """
+    changes = payload.model_dump(exclude_unset=True)
+    tracking = changes.get("tracking_type")
+    if tracking is None:
+        return
+    if tracking == TrackingType.NUMERIC and (
+        changes.get("target_value") is None or changes.get("target_direction") is None
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Changing tracking_type to NUMERIC needs target_value and target_direction",
+        )
+    if tracking == TrackingType.COUNT:
+        target = changes.get("target_value")
+        if target is None or target <= 0:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "Changing tracking_type to COUNT needs a positive target_value",
+            )
+    if (
+        tracking == TrackingType.MANUAL
+        and changes.get("manual_progress_percentage") is None
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Changing tracking_type to MANUAL needs manual_progress_percentage (0-100)",
+        )
+
+
 def update_goal(
     db: Session, user: User, *, goal_id: uuid.UUID, payload: GoalUpdate
 ) -> dict:
+    _assert_tracking_change_valid(payload)
     membership = require_membership(db, user)
     challenge = require_challenge(db, membership)
     participant = require_participant(db, challenge, user)

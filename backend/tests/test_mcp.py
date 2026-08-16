@@ -245,6 +245,29 @@ def test_update_goal_allows_visibility_change_after_lock(
     assert updated["visibility"] == GoalVisibility.PRIVATE
 
 
+def test_update_goal_rejects_a_type_change_without_its_fields(
+    team_setup, make_goal, db
+) -> None:
+    goal = make_goal(
+        team_setup.admin_participant,
+        title="Read every day",
+        tracking_type="MILESTONE",
+        baseline_value=None,
+        target_value=None,
+        current_value=None,
+        target_direction=None,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        tools.update_goal(
+            db,
+            team_setup.admin,
+            goal_id=goal.id,
+            payload=GoalUpdate(tracking_type="NUMERIC"),
+        )
+    assert exc.value.status_code == 422
+
+
 def test_update_goal_cannot_touch_a_teammates_goal(team_setup, make_goal, db) -> None:
     member_goal = make_goal(team_setup.member_participant, title="Squat 140kg")
 
