@@ -10,9 +10,10 @@ from sqlalchemy.orm import Session
 from app.api.v1 import serializers
 from app.mcp.context import require_challenge, require_membership, require_participant
 from app.models.domain import ChallengeParticipant, Team, User
-from app.schemas.domain import CheckinCreate, CheckinUpdate
+from app.schemas.domain import CheckinCreate, CheckinUpdate, GoalCreate
 from app.services import challenges as challenge_service
 from app.services import checkins as checkin_service
+from app.services import goals as goal_service
 from app.services.clock import is_before_start
 from app.services.goals import load_goal_tree, sync_participant_lock
 from app.services.progress import checkin_streak
@@ -185,6 +186,14 @@ def get_my_checkin(db: Session, user: User, *, day: date | None = None) -> dict:
         "pre_start": is_before_start(challenge, target),
         "goals": [serializers.goal_detail(goal) for goal in goals],
     }
+
+
+def add_goal(db: Session, user: User, *, payload: GoalCreate) -> dict:
+    membership = require_membership(db, user)
+    challenge = require_challenge(db, membership)
+    participant = require_participant(db, challenge, user)
+    goal = goal_service.create_goal(db, participant, payload)
+    return serializers.goal_detail(goal)
 
 
 def log_checkin(

@@ -86,7 +86,9 @@ A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
   same privacy as the app. Private titles, descriptions, targets and values
   are never sent. Team-visible teammate goals are included on purpose, so the
   model can compare and motivate.
-- Log today's check-in. The model cannot create goals or edit locked targets.
+- Add a goal, before your commitment locks. The model cannot edit existing
+  goals or change locked targets.
+- Log today's check-in.
 - Revoke a token from Settings if it leaks (OAuth connections appear as
   “ChatGPT”). Connecting shares that member's view of the team with their LLM
   provider.

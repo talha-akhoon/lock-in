@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -18,7 +19,7 @@ from app.db.session import SessionLocal
 from app.mcp import tools as impl
 from app.mcp.context import current_db, current_user
 from app.mcp.jsonutil import json_safe
-from app.schemas.domain import CheckinUpdate
+from app.schemas.domain import CheckinUpdate, GoalCreate
 from app.services.mcp_tokens import authenticate as authenticate_mcp_token
 from app.services.oauth import origin_from_headers, www_authenticate
 
@@ -32,8 +33,11 @@ description, target or value you were not given. Aggregates still include
 private goals.
 
 Before log_checkin, call get_my_goals and get_my_checkin so you use real
-goal ids and the challenge's today. Do not create or edit goals. Do not
-change locked targets. Only the caller can be checked in.
+goal ids and the challenge's today. Only the caller can be checked in.
+
+Use add_goal only for the caller and only before their commitment locks; it
+fails once goals are locked. Confirm the wording with them first. Do not edit
+existing goals or change locked targets.
 """
 
 
@@ -42,6 +46,13 @@ def _http_message(exc: HTTPException) -> str:
     if isinstance(detail, dict):
         return str(detail.get("message") or detail.get("code") or detail)
     return str(detail)
+
+
+def _validation_message(exc: ValidationError) -> str:
+    return "; ".join(
+        f"{'.'.join(str(part) for part in error['loc']) or 'goal'}: {error['msg']}"
+        for error in exc.errors()
+    )
 
 
 def _run(fn: Callable[..., Any], **kwargs: Any) -> Any:
@@ -106,6 +117,55 @@ def get_activity(limit: int = 50) -> list[dict]:
 def get_my_checkin(day: date | None = None) -> dict:
     """Today's (or a given day's) check-in form: existing note plus goals to update."""
     return _run(impl.get_my_checkin, day=day)
+
+
+@mcp.tool()
+def add_goal(
+    category: str,
+    title: str,
+    tracking_type: str,
+    description: str | None = None,
+    target_value: float | None = None,
+    target_direction: str | None = None,
+    baseline_value: float | None = None,
+    current_value: float | None = None,
+    unit: str | None = None,
+    manual_progress_percentage: int | None = None,
+    visibility: str = "TEAM",
+    required: bool = True,
+    parent_goal_id: str | None = None,
+) -> dict:
+    """Create a goal for the caller. Only works before the commitment is locked.
+
+    category: RELIGIOUS, PHYSICAL, CAREER, BUSINESS or PERSONAL.
+    tracking_type picks what to fill in:
+      MILESTONE  done / not done; leave the numeric fields empty.
+      NUMERIC    needs target_value and target_direction (AT_LEAST / AT_MOST);
+                 baseline_value defaults to current_value or 0.
+      COUNT      needs a positive target_value; counts up from 0.
+      MANUAL     a 0-100 manual_progress_percentage you set yourself.
+    visibility TEAM (default) or PRIVATE. Pass parent_goal_id to nest one level
+    under an existing goal (it inherits the parent's category).
+    """
+    try:
+        payload = GoalCreate(
+            category=category,
+            title=title,
+            tracking_type=tracking_type,
+            description=description,
+            target_value=target_value,
+            target_direction=target_direction,
+            baseline_value=baseline_value,
+            current_value=current_value,
+            unit=unit,
+            manual_progress_percentage=manual_progress_percentage,
+            visibility=visibility,
+            required=required,
+            parent_goal_id=parent_goal_id,
+        )
+    except ValidationError as exc:
+        raise ToolError(_validation_message(exc)) from exc
+    return _run(impl.add_goal, payload=payload)
 
 
 @mcp.tool()
