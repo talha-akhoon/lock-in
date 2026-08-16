@@ -36,9 +36,11 @@ the commitment, the daily record, and the reckoning at the end.
 8. **Optional: connect your own LLM.** ChatGPT custom connectors use OAuth:
    paste the `/mcp` URL, choose OAuth, sign in to LockIn and approve. Cursor
    and Claude take a personal token from Settings. The model can read your
-   goals, see teammates' team-visible progress, and log today's check-in.
-   LockIn stays the source of truth. Connecting shares your view of the team
-   with that LLM provider. Private goals stay in LockIn.
+   goals, see teammates' team-visible progress, add a goal before your
+   commitment locks, and log today's check-in. It cannot edit existing goals
+   or change locked targets. LockIn stays the source of truth. Connecting
+   shares your view of the team with that LLM provider. Private goals stay in
+   LockIn.
 9. **Finish.** When the end date passes, required goals are scored. Anyone who
    fell short owes the forfeit to each other member. The results screen lists
    who pays whom.

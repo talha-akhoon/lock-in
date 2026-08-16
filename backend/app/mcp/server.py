@@ -19,6 +19,12 @@ from app.db.session import SessionLocal
 from app.mcp import tools as impl
 from app.mcp.context import current_db, current_user
 from app.mcp.jsonutil import json_safe
+from app.models.domain import (
+    GoalCategory,
+    GoalVisibility,
+    TargetDirection,
+    TrackingType,
+)
 from app.schemas.domain import CheckinUpdate, GoalCreate
 from app.services.mcp_tokens import authenticate as authenticate_mcp_token
 from app.services.oauth import origin_from_headers, www_authenticate
@@ -36,8 +42,11 @@ Before log_checkin, call get_my_goals and get_my_checkin so you use real
 goal ids and the challenge's today. Only the caller can be checked in.
 
 Use add_goal only for the caller and only before their commitment locks; it
-fails once goals are locked. Confirm the wording with them first. Do not edit
-existing goals or change locked targets.
+fails once goals are locked. It skips the goal wizard's review step, so before
+you call it confirm with them: the title, the tracking type and starting
+point, whether the goal is required or optional (required goals decide the
+forfeit, and it defaults to required), and whether it is TEAM-visible or
+PRIVATE. Do not edit existing goals or change locked targets.
 """
 
 
@@ -121,31 +130,35 @@ def get_my_checkin(day: date | None = None) -> dict:
 
 @mcp.tool()
 def add_goal(
-    category: str,
+    category: GoalCategory,
     title: str,
-    tracking_type: str,
+    tracking_type: TrackingType,
     description: str | None = None,
     target_value: float | None = None,
-    target_direction: str | None = None,
+    target_direction: TargetDirection | None = None,
     baseline_value: float | None = None,
     current_value: float | None = None,
     unit: str | None = None,
     manual_progress_percentage: int | None = None,
-    visibility: str = "TEAM",
+    visibility: GoalVisibility = GoalVisibility.TEAM,
     required: bool = True,
     parent_goal_id: str | None = None,
 ) -> dict:
     """Create a goal for the caller. Only works before the commitment is locked.
 
-    category: RELIGIOUS, PHYSICAL, CAREER, BUSINESS or PERSONAL.
+    Confirm the details with the caller first — this skips the goal wizard's
+    review step.
+
     tracking_type picks what to fill in:
       MILESTONE  done / not done; leave the numeric fields empty.
       NUMERIC    needs target_value and target_direction (AT_LEAST / AT_MOST);
                  baseline_value defaults to current_value or 0.
       COUNT      needs a positive target_value; counts up from 0.
       MANUAL     a 0-100 manual_progress_percentage you set yourself.
-    visibility TEAM (default) or PRIVATE. Pass parent_goal_id to nest one level
-    under an existing goal (it inherits the parent's category).
+    visibility TEAM (default) or PRIVATE. required defaults to true; required
+    goals are the ones scored for the end-of-challenge forfeit. Pass
+    parent_goal_id to nest one level under an existing goal (it inherits the
+    parent's category).
     """
     try:
         payload = GoalCreate(

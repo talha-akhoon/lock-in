@@ -176,6 +176,25 @@ def test_add_goal_is_rejected_once_the_commitment_locks(team_setup, db) -> None:
     assert exc.value.status_code == 409
 
 
+def test_add_goal_rejects_a_parent_owned_by_a_teammate(
+    team_setup, make_goal, db
+) -> None:
+    member_goal = make_goal(team_setup.member_participant, title="Squat 140kg")
+
+    with pytest.raises(HTTPException) as exc:
+        tools.add_goal(
+            db,
+            team_setup.admin,
+            payload=GoalCreate(
+                category="PHYSICAL",
+                title="Child of a teammate's goal",
+                tracking_type="MILESTONE",
+                parent_goal_id=member_goal.id,
+            ),
+        )
+    assert exc.value.status_code == 404
+
+
 def test_mcp_tools_never_leak_a_teammates_private_goal(
     team_setup, make_goal, db
 ) -> None:
