@@ -147,8 +147,15 @@ h1, h2, h3 { letter-spacing: -.035em; }
    member-written units, counts — so nothing is re-cased. */
 .goal-meta span { padding: 5px 8px; background: #232823; border-radius: 6px; color: var(--muted); font-size: 10px; }
 .subgoal { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr 40px auto; align-items: center; gap: 14px; padding: 13px 8px 0 20px; color: var(--muted); font-size: 12px; }
+.subgoal.reorderable { grid-template-columns: auto minmax(160px, 1fr) 2fr 40px auto; padding-left: 4px; }
 .subgoal .progress { height: 4px; }
 .subgoal b { color: var(--ink); }
+.subgoal.dragging { opacity: 0.55; user-select: none; }
+.subgoal-handle { width: 36px; height: 36px; display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); cursor: grab; touch-action: none; border-radius: 7px; }
+.subgoal-handle svg { width: 16px; pointer-events: none; }
+.subgoal-handle:active, .subgoal.dragging .subgoal-handle { cursor: grabbing; }
+.subgoal-handle:focus-visible { box-shadow: 0 0 0 3px rgba(200,245,96,.16); }
+.subgoal-handle:disabled { opacity: 0.35; cursor: not-allowed; }
 .subgoal-actions { display: flex; gap: 4px; justify-self: end; }
 .commit-panel { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 28px; border: 1px solid #43302d; border-radius: 16px; background: #1d1716; margin-top: 12px; }
 .commit-panel h3 { margin: 0 0 4px; }
@@ -599,7 +606,9 @@ textarea { min-height: 85px; resize: vertical; }
   .profile-score > b { font-size: 40px; }
   .checkin-parent-head { grid-template-columns: 1fr; gap: 8px; }
   .subgoal { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; }
+  .subgoal.reorderable { grid-template-columns: auto minmax(0, 1fr) auto; }
   .subgoal .progress { grid-column: 1 / -1; }
+  .subgoal.reorderable .progress { grid-column: 2 / -1; }
   .subgoal-actions { grid-column: 1 / -1; }
   .admin-row, .invite-row, .mcp-token-row { grid-template-columns: 1fr; gap: 10px; }
   .invite-code { flex-direction: column; align-items: stretch; }

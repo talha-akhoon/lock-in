@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { makeGoal } from '../../test/factories'
-import { movedStepIds, orderedChildren } from './stepOrder'
+import { dropIndexForY, insertIdAt, movedStepIds, orderedChildren } from './stepOrder'
 
 describe('movedStepIds', () => {
   it('swaps a step with its neighbour', () => {
@@ -11,6 +11,28 @@ describe('movedStepIds', () => {
   it('refuses a move past either end', () => {
     expect(movedStepIds(['a', 'b'], 'a', 'up')).toBeNull()
     expect(movedStepIds(['a', 'b'], 'b', 'down')).toBeNull()
+  })
+})
+
+describe('insertIdAt', () => {
+  it('moves a step to any index among the others', () => {
+    expect(insertIdAt(['a', 'b', 'c'], 'a', 2)).toEqual(['b', 'c', 'a'])
+    expect(insertIdAt(['a', 'b', 'c'], 'c', 0)).toEqual(['c', 'a', 'b'])
+    expect(insertIdAt(['a', 'b', 'c'], 'a', 0)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('dropIndexForY', () => {
+  const rows = [
+    { id: 'a', top: 0, bottom: 40 },
+    { id: 'b', top: 40, bottom: 80 },
+    { id: 'c', top: 80, bottom: 120 },
+  ]
+
+  it('inserts before the first row whose midpoint is below the pointer', () => {
+    expect(dropIndexForY(rows, 'a', 70)).toBe(1)
+    expect(dropIndexForY(rows, 'a', 110)).toBe(2)
+    expect(dropIndexForY(rows, 'c', 10)).toBe(0)
   })
 })
 

@@ -73,9 +73,9 @@ the commitment, the daily record, and the reckoning at the end.
     moved (a side project you cannot count cleanly).
 - **Steps** — optional one-level sub-goals. You check in on the steps; the
   parent averages its required children. Use this when the work is a few named
-  finish-lines, not when you already have a running total. Reorder them with
-  the arrows on the goal; that order is what check-in uses, and it can still
-  change after the lock.
+  finish-lines, not when you already have a running total. Drag them into the
+  order you want; that order is what check-in uses, and it can still change
+  after the lock.
 - In-app **?** buttons next to tracking method and Add step explain the above.
 
 ### Daily accountability
