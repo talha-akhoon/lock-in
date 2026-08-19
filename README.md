@@ -83,7 +83,9 @@ the commitment, the daily record, and the reckoning at the end.
 - Per-member heatmap and streak on the profile.
 - Team dashboard with everyone's progress (private titles redacted).
 - Activity feed of recent updates.
-- **Install as an app** — add LockIn to the Home Screen or desktop. Settings
+- **Install as an app** — add LockIn to the Home Screen or desktop. On a
+  phone the main screens sit on a tab bar (dashboard, check-in, goals, team)
+  so check-in is one tap; Activity, Settings and Admin are under More. Settings
   turns on push so teammate logs, missed check-ins, streaks, pace and
   deadline reminders reach you when the tab is closed. Mute individual types
   there: off means no bell and no push for that event. iPhone only delivers
@@ -289,6 +291,7 @@ backend/app/
 
 frontend/src/
   pages/                  one file per screen, including /admin/*
+  layouts/                signed-in chrome: desktop sidebar, phone tab bar
   features/               goal forms, check-in payloads, help copy
   components/             primitives, heatmap, countdown, notifications, InfoTip, PWA settings, mute toggles
   hooks/queries.ts        typed TanStack Query hooks

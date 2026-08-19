@@ -21,21 +21,23 @@ export function Heatmap({
           {data.total_days_logged} {data.total_days_logged === 1 ? 'day' : 'days'} logged
         </b>
       </div>
-      <div className="heatmap-grid" data-testid="heatmap-grid">
-        {cells.map((cell) => (
-          <span
-            key={cell.date}
-            data-testid="heatmap-cell"
-            data-date={cell.date}
-            data-level={cell.future ? 'future' : heatmapLevel(cell.count)}
-            className={cell.future ? 'future' : `level-${heatmapLevel(cell.count)}`}
-            title={
-              cell.future
-                ? cell.date
-                : `${cell.date}: ${cell.count} ${cell.count === 1 ? 'update' : 'updates'}`
-            }
-          />
-        ))}
+      <div className="heatmap-scroll">
+        <div className="heatmap-grid" data-testid="heatmap-grid">
+          {cells.map((cell) => (
+            <span
+              key={cell.date}
+              data-testid="heatmap-cell"
+              data-date={cell.date}
+              data-level={cell.future ? 'future' : heatmapLevel(cell.count)}
+              className={cell.future ? 'future' : `level-${heatmapLevel(cell.count)}`}
+              title={
+                cell.future
+                  ? cell.date
+                  : `${cell.date}: ${cell.count} ${cell.count === 1 ? 'update' : 'updates'}`
+              }
+            />
+          ))}
+        </div>
       </div>
       <div className="heatmap-key">
         Less <i className="level-0" />

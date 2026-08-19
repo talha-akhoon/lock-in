@@ -66,7 +66,7 @@ export function LoginPage() {
         <p>Your team is waiting.</p>
         {configured ? (
           <GoogleLogin
-            width="320"
+            width="280"
             onError={() => setError('Google could not verify you. Try again.')}
             onSuccess={async ({ credential }) => {
               if (!credential) {
