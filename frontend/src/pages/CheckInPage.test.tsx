@@ -98,6 +98,67 @@ describe('check-in form', () => {
     expect(fetchMock.sent('POST /me/checkins')).toHaveLength(0)
   })
 
+  it('saves unchecking a milestone after it was ticked and saved', async () => {
+    const milestone = makeGoal({ title: 'Finish the book', tracking_type: 'MILESTONE' })
+    const fetchMock = stub([milestone])
+    renderWithAuth(<CheckInPage />, makeAuth())
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByLabelText('Finish the book'))
+    await user.click(screen.getByRole('button', { name: /save today/i }))
+    await waitFor(() => expect(fetchMock.sent('POST /me/checkins')).toHaveLength(1))
+    expect(fetchMock.sent('POST /me/checkins')[0].body).toEqual({
+      date: today,
+      note: null,
+      updates: [{ goal_id: milestone.id, completed: true }],
+    })
+
+    await user.click(screen.getByLabelText('Finish the book'))
+    await user.click(screen.getByRole('button', { name: /save today/i }))
+    await waitFor(() => expect(fetchMock.sent('POST /me/checkins')).toHaveLength(2))
+    expect(fetchMock.sent('POST /me/checkins')[1].body).toEqual({
+      date: today,
+      note: null,
+      updates: [{ goal_id: milestone.id, completed: false }],
+    })
+  })
+
+  it('saves unchecking a milestone that was already complete', async () => {
+    const milestone = makeGoal({
+      title: 'Finish the book',
+      tracking_type: 'MILESTONE',
+      completed_at: '2026-01-02T00:00:00Z',
+    })
+    const fetchMock = stub([milestone])
+    renderWithAuth(<CheckInPage />, makeAuth())
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByLabelText('Finish the book'))
+    await user.click(screen.getByRole('button', { name: /save today/i }))
+
+    await waitFor(() => expect(fetchMock.sent('POST /me/checkins')).toHaveLength(1))
+    expect(fetchMock.sent('POST /me/checkins')[0].body).toEqual({
+      date: today,
+      note: null,
+      updates: [{ goal_id: milestone.id, completed: false }],
+    })
+  })
+
+  it('does not save a tick that was checked and cleared before the first save', async () => {
+    const fetchMock = stub([makeGoal({ title: 'Finish the book', tracking_type: 'MILESTONE' })])
+    renderWithAuth(<CheckInPage />, makeAuth())
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByLabelText('Finish the book'))
+    await user.click(screen.getByLabelText('Finish the book'))
+    await user.click(screen.getByRole('button', { name: /save today/i }))
+
+    expect(
+      screen.getByText('Nothing to save yet — update a goal or leave a note.'),
+    ).toBeInTheDocument()
+    expect(fetchMock.sent('POST /me/checkins')).toHaveLength(0)
+  })
+
   it('offers sub-goals rather than the parent the API rejects', async () => {
     const child = makeGoal({
       title: 'Chapter one',

@@ -148,6 +148,45 @@ def test_a_parent_goal_cannot_be_updated_directly(
     assert db.query(DailyCheckin).count() == 0
 
 
+def test_unchecking_a_milestone_clears_completion(
+    team_setup, today, make_goal, db
+) -> None:
+    goal = make_goal(
+        team_setup.admin_participant,
+        title="Ship the app",
+        tracking_type="MILESTONE",
+        baseline_value=None,
+        target_value=None,
+        current_value=None,
+        target_direction=None,
+    )
+    client = team_setup.admin_client
+    assert (
+        client.post(
+            "/api/v1/me/checkins",
+            json={
+                "date": today,
+                "updates": [{"goal_id": str(goal.id), "completed": True}],
+            },
+        ).status_code
+        == 200
+    )
+    db.expire_all()
+    assert db.get(Goal, goal.id).completed_at is not None
+
+    response = client.post(
+        "/api/v1/me/checkins",
+        json={
+            "date": today,
+            "updates": [{"goal_id": str(goal.id), "completed": False}],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    assert db.get(Goal, goal.id).completed_at is None
+
+
 def test_completing_all_required_children_completes_the_parent(
     team_setup, today, make_goal, db
 ) -> None:

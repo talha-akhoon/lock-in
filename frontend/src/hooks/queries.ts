@@ -6,6 +6,7 @@ import {
   useQueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query'
+import { applyCheckinUpdates } from '../features/checkin/payload'
 import { api, del, patch, post, put } from '../lib/api'
 import type {
   ActivityEntry,
@@ -47,7 +48,10 @@ export const keys = {
   goal: (goalId: string) => ['goal', goalId] as const,
   goalHistory: (goalId: string) => ['goal-history', goalId] as const,
   checkins: ['checkins'] as const,
-  checkinDay: (day: string) => ['checkin', day] as const,
+  // Nested under `checkins` so a save invalidates the heatmap *and* the day's
+  // form. `['checkin', day]` was a different prefix, so unchecking after a
+  // save compared against a stale `completed_at` and looked like a no-op.
+  checkinDay: (day: string) => ['checkins', 'day', day] as const,
   notifications: ['notifications'] as const,
   invitations: ['invitations'] as const,
   audit: ['audit'] as const,
@@ -257,9 +261,22 @@ export function useCommitGoals() {
 
 export function useSaveCheckin() {
   const invalidate = useGoalInvalidation()
+  const client = useQueryClient()
   return useMutation({
     mutationFn: (payload: CheckinPayload) => post('/me/checkins', payload),
-    onSuccess: invalidate,
+    onSuccess: (_result, payload) => {
+      client.setQueryData<DayCheckin>(keys.checkinDay(payload.date), (current) =>
+        current
+          ? {
+              ...current,
+              exists: true,
+              note: payload.note,
+              goals: applyCheckinUpdates(current.goals, payload.updates),
+            }
+          : current,
+      )
+      invalidate()
+    },
   })
 }
 
