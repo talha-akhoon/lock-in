@@ -100,6 +100,84 @@ def test_subgoals_can_be_added_to_a_locked_goal(team_setup, locked_goal) -> None
     assert response.json()["parent_goal_id"] == str(locked_goal.id)
 
 
+def test_a_first_step_is_refused_on_a_progressed_locked_goal(
+    team_setup, make_goal, db
+) -> None:
+    """A first child replaces a parent's own score with the children's mean.
+
+    On a goal that has already banked progress that is a rewrite, not an
+    addition, so it must stay refused once locked.
+    """
+    goal = make_goal(
+        team_setup.admin_participant, current_value="105"
+    )  # 50% of 90..120
+    participant = db.get(ChallengeParticipant, team_setup.admin_participant.id)
+    participant.goals_locked_at = participant.goals_due_at
+    db.commit()
+
+    response = team_setup.admin_client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PHYSICAL",
+            "title": "Late step",
+            "tracking_type": "MILESTONE",
+            "parent_goal_id": str(goal.id),
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "GOALS_LOCKED"
+
+
+def test_adding_a_step_keeps_a_locked_parents_checkmark_honest(
+    team_setup, make_goal, db
+) -> None:
+    """Create must cascade completion, or a done parent keeps its tick while its
+    score (which the forfeit reads) drops below 100."""
+    parent = make_goal(
+        team_setup.admin_participant,
+        tracking_type="MILESTONE",
+        baseline_value=None,
+        target_value=None,
+        current_value=None,
+        target_direction=None,
+    )
+    client = team_setup.admin_client
+    first = client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PHYSICAL",
+            "title": "Step one",
+            "tracking_type": "MILESTONE",
+            "parent_goal_id": str(parent.id),
+        },
+    ).json()
+    client.post(
+        f"/api/v1/goals/{first['id']}/progress",
+        json={"entry_date": "2026-08-14", "completed": True},
+    )
+
+    participant = db.get(ChallengeParticipant, team_setup.admin_participant.id)
+    participant.goals_locked_at = participant.goals_due_at
+    db.commit()
+
+    # Parent already has children, so a further required step is allowed locked.
+    second = client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PHYSICAL",
+            "title": "Step two",
+            "tracking_type": "MILESTONE",
+            "parent_goal_id": str(parent.id),
+        },
+    )
+    assert second.status_code == 201, second.text
+
+    tree = {goal["id"]: goal for goal in client.get("/api/v1/me/goals").json()["goals"]}
+    refreshed = tree[str(parent.id)]
+    assert refreshed["completed_at"] is None
+    assert refreshed["progress_percentage"] == 50.0
+
+
 def test_goals_cannot_be_added_after_the_challenge_ends(
     team_setup, locked_goal, db
 ) -> None:

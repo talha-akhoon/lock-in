@@ -196,6 +196,7 @@ def test_add_goal_is_rejected_after_the_challenge_ends(team_setup, db) -> None:
             ),
         )
     assert exc.value.status_code == 409
+    assert exc.value.detail["code"] == "CHALLENGE_OVER"
 
 
 def test_add_goal_rejects_a_parent_owned_by_a_teammate(

@@ -145,6 +145,7 @@ export function GoalsPage() {
       {composing && (
         <GoalForm
           parent={parent ?? undefined}
+          lockedNotice={locked}
           onSubmit={submit}
           onClose={() => {
             setComposing(false)
