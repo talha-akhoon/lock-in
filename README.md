@@ -36,9 +36,10 @@ the commitment, the daily record, and the reckoning at the end.
    that snapshot.
 7. **Check in.** Each day you update the goals that moved. Streaks and a
    heatmap use the challenge's own timezone. Each log pings teammates in the
-   app and, if they turned on push, on their phone — so one more LC problem
-   is one more nudge. A save that finishes a team-visible goal sends the
-   completion ping only, not a second "logged progress" banner.
+   app and, if they turned on push, on their phone. The banner shows how much
+   they logged — six applications, not the target of a hundred — so one more
+   LC problem is one more nudge. A save that finishes a team-visible goal
+   sends the completion ping only, not a second "logged progress" banner.
    An hourly job also pings you in the evening (the challenge timezone) if you
    have not checked in, if a streak is about to die, if a teammate has gone
    quiet for three days, or (Sunday evening) if a required goal is behind the
@@ -128,10 +129,11 @@ A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
 ### Notifications
 
 In-app (no email): goal-lock warnings, challenge milestones (100 / 30 / 7
-days), challenge complete, a teammate logging progress, a teammate finishing a
-goal, a member joining, you have not checked in today (evening, challenge
-timezone), a streak about to die, a teammate gone quiet for three days, and
-behind on a required goal (Sunday evening, after a week's grace). A save that
+days), challenge complete, a teammate logging progress (the amount they
+logged, not just the goal title), a teammate finishing a goal, a member
+joining, you have not checked in today (evening, challenge timezone), a
+streak about to die, a teammate gone quiet for three days, and behind on a
+required goal (Sunday evening, after a week's grace). A save that
 finishes a team-visible goal sends only the completion ping, not a second
 progress ping. Mute any of those in Settings — muted types skip the bell and
 push.

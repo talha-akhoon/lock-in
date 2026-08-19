@@ -1,10 +1,57 @@
 """All eight notification types, and the dedupe that makes lazy generation safe."""
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
 from app.models.domain import Challenge, ChallengeParticipant, Notification
+from app.services.notifications import progress_log_body
+
+
+def test_progress_body_leads_with_the_logged_amount() -> None:
+    goal = SimpleNamespace(title="Submit 100 Job Applications", unit="applications")
+    entry = SimpleNamespace(
+        numeric_delta=Decimal("6.0000"),
+        numeric_value=None,
+        manual_percentage=None,
+    )
+    assert (
+        progress_log_body(goal, entry)
+        == "+6 applications on Submit 100 Job Applications"
+    )
+
+
+def test_progress_body_uses_the_numeric_change_when_the_log_is_a_new_figure() -> None:
+    goal = SimpleNamespace(title="Deadlift 120kg", unit="kg")
+    entry = SimpleNamespace(
+        numeric_delta=None,
+        numeric_value=Decimal(105),
+        manual_percentage=None,
+    )
+    assert (
+        progress_log_body(goal, entry, previous_value=Decimal(90))
+        == "+15 kg on Deadlift 120kg"
+    )
+
+
+def test_progress_body_keeps_a_minus_sign_on_a_drop() -> None:
+    goal = SimpleNamespace(title="Body fat to 12%", unit="%")
+    entry = SimpleNamespace(
+        numeric_delta=Decimal("-0.5"),
+        numeric_value=None,
+        manual_percentage=None,
+    )
+    assert progress_log_body(goal, entry) == "-0.5 % on Body fat to 12%"
+
+
+def test_progress_body_falls_back_to_the_title_for_a_note_only_log() -> None:
+    goal = SimpleNamespace(title="Get promoted", unit=None)
+    entry = SimpleNamespace(
+        numeric_delta=None, numeric_value=None, manual_percentage=None
+    )
+    assert progress_log_body(goal, entry) == "Get promoted"
 
 
 def types_for(client) -> list[str]:
@@ -132,10 +179,20 @@ def test_the_owner_is_not_notified_about_their_own_completion(
 
 
 def test_a_teammate_logging_progress_is_announced(team_setup, make_goal) -> None:
-    goal = make_goal(team_setup.member_participant, title="LeetCode problems")
+    from decimal import Decimal
+
+    goal = make_goal(
+        team_setup.member_participant,
+        title="Submit 100 Job Applications",
+        tracking_type="COUNT",
+        baseline_value=Decimal(0),
+        current_value=Decimal(0),
+        target_value=Decimal(100),
+        unit="applications",
+    )
     team_setup.member_client.post(
         f"/api/v1/goals/{goal.id}/progress",
-        json={"entry_date": "2026-08-14", "numeric_value": "91"},
+        json={"entry_date": "2026-08-14", "numeric_delta": "6"},
     )
 
     body = team_setup.admin_client.get("/api/v1/me/notifications").json()
@@ -143,7 +200,7 @@ def test_a_teammate_logging_progress_is_announced(team_setup, make_goal) -> None
 
     assert len(logs) == 1
     assert logs[0]["title"] == "Teammate logged progress"
-    assert logs[0]["body"] == "LeetCode problems"
+    assert logs[0]["body"] == "+6 applications on Submit 100 Job Applications"
 
 
 def test_the_owner_is_not_notified_about_their_own_log(team_setup, make_goal) -> None:
@@ -154,6 +211,42 @@ def test_the_owner_is_not_notified_about_their_own_log(team_setup, make_goal) ->
     )
 
     assert "MEMBER_CHECKED_IN" not in types_for(team_setup.member_client)
+
+
+def test_a_numeric_log_shows_the_change_from_the_previous_figure(
+    team_setup, make_goal
+) -> None:
+    goal = make_goal(team_setup.member_participant, title="Deadlift 120kg")
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "105"},
+    )
+
+    body = team_setup.admin_client.get("/api/v1/me/notifications").json()
+    logs = [row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"]
+    assert logs[0]["body"] == "+15 kg on Deadlift 120kg"
+
+
+def test_a_manual_log_shows_the_new_percentage(team_setup, make_goal) -> None:
+    goal = make_goal(
+        team_setup.member_participant,
+        title="Ship the side project",
+        tracking_type="MANUAL",
+        baseline_value=None,
+        current_value=None,
+        target_value=None,
+        target_direction=None,
+        unit=None,
+        manual_progress_percentage=20,
+    )
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "manual_percentage": 35},
+    )
+
+    body = team_setup.admin_client.get("/api/v1/me/notifications").json()
+    logs = [row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"]
+    assert logs[0]["body"] == "now 35% on Ship the side project"
 
 
 def test_each_progress_log_notifies_again(team_setup, make_goal) -> None:
@@ -178,7 +271,7 @@ def test_each_progress_log_notifies_again(team_setup, make_goal) -> None:
     body = team_setup.admin_client.get("/api/v1/me/notifications").json()
     logs = [row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"]
     assert len(logs) == 2
-    assert all(row["body"] == "LeetCode problems" for row in logs)
+    assert all(row["body"] == "+1 problems on LeetCode problems" for row in logs)
 
 
 def test_html_entities_in_a_goal_title_are_shown_as_text(team_setup, make_goal) -> None:
@@ -192,7 +285,7 @@ def test_html_entities_in_a_goal_title_are_shown_as_text(team_setup, make_goal) 
 
     body = team_setup.admin_client.get("/api/v1/me/notifications").json()
     logs = [row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"]
-    assert logs[0]["body"] == "Lock the design & branding"
+    assert logs[0]["body"] == "+1 kg on Lock the design & branding"
 
 
 def test_a_starting_point_snapshot_does_not_announce_progress(

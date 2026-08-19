@@ -8,6 +8,7 @@ still keyed on (user, type, dedupe_key).
 import html
 import uuid
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from app.models.domain import (
     Challenge,
     ChallengeParticipant,
     Goal,
+    GoalProgressEntry,
     GoalVisibility,
     MembershipStatus,
     Notification,
@@ -38,7 +40,7 @@ PREFERENCE_TYPES: tuple[dict[str, str], ...] = (
         "type": NotificationType.MEMBER_CHECKED_IN.value,
         "group": "Team",
         "label": "Teammate logged progress",
-        "description": "Every save — another LC problem, another session.",
+        "description": "Every save — how much they logged, not the target.",
     },
     {
         "type": NotificationType.MEMBER_COMPLETED_GOAL.value,
@@ -325,13 +327,48 @@ def member_completed_goal(
     )
 
 
+def _format_amount(value: Decimal) -> str:
+    """Drop trailing zeros so a COUNT of 6 is '6', not '6.0000'."""
+    integral = value.to_integral_value()
+    if value == integral:
+        return str(int(integral))
+    return format(value.normalize(), "f")
+
+
+def progress_log_body(
+    goal: Goal,
+    entry: GoalProgressEntry,
+    *,
+    previous_value: Decimal | None = None,
+) -> str:
+    """Lead with the change so the banner is not mistaken for finishing the target.
+
+    A COUNT of +6 applications on 'Submit 100 Job Applications' used to show
+    only the title, which reads as if they submitted all 100.
+    """
+    unit = f" {goal.unit}" if goal.unit else ""
+    title = goal.title
+    delta = entry.numeric_delta
+    if delta is None and entry.numeric_value is not None and previous_value is not None:
+        delta = entry.numeric_value - previous_value
+    if delta is not None:
+        sign = "+" if delta >= 0 else ""
+        return f"{sign}{_format_amount(delta)}{unit} on {title}"
+    if entry.numeric_value is not None:
+        return f"now {_format_amount(entry.numeric_value)}{unit} on {title}"
+    if entry.manual_percentage is not None:
+        return f"now {entry.manual_percentage}% on {title}"
+    return title
+
+
 def member_logged_progress(
     db: Session,
     *,
     goal: Goal,
     participant: ChallengeParticipant,
     team_id: uuid.UUID,
-    entry_id: uuid.UUID,
+    entry: GoalProgressEntry,
+    previous_value: Decimal | None = None,
 ) -> None:
     """Ping the team on every log, without leaking a private goal's title."""
     if goal.visibility == GoalVisibility.PRIVATE:
@@ -341,9 +378,9 @@ def member_logged_progress(
         team_id=team_id,
         challenge_id=participant.challenge_id,
         kind=NotificationType.MEMBER_CHECKED_IN,
-        dedupe_key=f"progress:{entry_id}",
+        dedupe_key=f"progress:{entry.id}",
         title=f"{participant.user.display_name} logged progress",
-        body=goal.title,
+        body=progress_log_body(goal, entry, previous_value=previous_value),
         link_path=f"/team/members/{participant.user_id}",
         exclude_user_id=participant.user_id,
     )
