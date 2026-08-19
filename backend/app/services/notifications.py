@@ -5,6 +5,7 @@ so people who have not opened the app still get lock-screen pings. Inserts are
 still keyed on (user, type, dedupe_key).
 """
 
+import html
 import uuid
 from datetime import datetime, timedelta
 
@@ -136,6 +137,13 @@ def set_muted_types(user: User, types: list[str]) -> list[str]:
     return ordered
 
 
+def _plain(value: str | None) -> str | None:
+    """Notification text is shown as plaintext on iOS; stored HTML entities leak."""
+    if value is None:
+        return None
+    return html.unescape(value)
+
+
 def notify(
     db: Session,
     *,
@@ -163,8 +171,8 @@ def notify(
         challenge_id=challenge_id,
         type=kind,
         dedupe_key=dedupe_key,
-        title=title,
-        body=body,
+        title=_plain(title) or title,
+        body=_plain(body),
         link_path=link_path,
     )
     db.add(row)

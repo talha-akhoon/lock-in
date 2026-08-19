@@ -297,17 +297,20 @@ def add_progress(
     db.add(entry)
     db.flush()
     cascade_completion(db, goal)
+    newly_complete = bool(goal.completed_at) and not was_complete
     if team_id and not is_before_start(participant.challenge):
-        notifications.member_logged_progress(
-            db,
-            goal=goal,
-            participant=participant,
-            team_id=team_id,
-            entry_id=entry.id,
-        )
-        if goal.completed_at and not was_complete:
+        # One banner per save: a finishing log is "completed", not completed+progress.
+        if newly_complete:
             notifications.member_completed_goal(
                 db, goal=goal, participant=participant, team_id=team_id
+            )
+        else:
+            notifications.member_logged_progress(
+                db,
+                goal=goal,
+                participant=participant,
+                team_id=team_id,
+                entry_id=entry.id,
             )
     return entry
 

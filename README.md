@@ -37,13 +37,14 @@ the commitment, the daily record, and the reckoning at the end.
 7. **Check in.** Each day you update the goals that moved. Streaks and a
    heatmap use the challenge's own timezone. Each log pings teammates in the
    app and, if they turned on push, on their phone — so one more LC problem
-   is one more nudge. Finishing a whole team-visible goal pings them too.
-   An hourly job also pings you in the evening (challenge timezone) if you have not checked in,
-   if a streak is about to die, if a teammate has gone quiet for three days,
-   or (Sunday evening) if a required goal is behind the expected pace.
-   Deadline reminders — goals lock tomorrow, 100 / 30 / 7 days left, challenge
-   finished — go out as push too, so they reach people who have not opened
-   the app. Mute any type in Settings.
+   is one more nudge. A save that finishes a team-visible goal sends the
+   completion ping only, not a second "logged progress" banner.
+   An hourly job also pings you in the evening (the challenge timezone) if you
+   have not checked in, if a streak is about to die, if a teammate has gone
+   quiet for three days, or (Sunday evening) if a required goal is behind the
+   expected pace. Deadline reminders — goals lock tomorrow, 100 / 30 / 7 days
+   left, challenge finished — go out as push too, so they reach people who
+   have not opened the app. Mute any type in Settings.
 8. **Optional: connect your own LLM.** ChatGPT custom connectors use OAuth:
    paste the `/mcp` URL, choose OAuth, sign in to LockIn and approve. Cursor
    and Claude take a personal token from Settings. The model can read your
@@ -128,8 +129,10 @@ In-app (no email): goal-lock warnings, challenge milestones (100 / 30 / 7
 days), challenge complete, a teammate logging progress, a teammate finishing a
 goal, a member joining, you have not checked in today (evening, challenge
 timezone), a streak about to die, a teammate gone quiet for three days, and
-behind on a required goal (Sunday evening, after a week's grace). Mute any of
-those in Settings — muted types skip the bell and push.
+behind on a required goal (Sunday evening, after a week's grace). A save that
+finishes a team-visible goal sends only the completion ping, not a second
+progress ping. Mute any of those in Settings — muted types skip the bell and
+push.
 
 Every type except "someone joined" also goes out as Web Push to devices that
 have it enabled. An hourly GitHub Action calls an internal dispatch endpoint
