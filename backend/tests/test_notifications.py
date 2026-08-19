@@ -36,6 +36,16 @@ def test_progress_body_uses_the_numeric_change_when_the_log_is_a_new_figure() ->
     )
 
 
+def test_progress_body_shows_the_new_figure_when_there_is_no_previous() -> None:
+    goal = SimpleNamespace(title="Deadlift 120kg", unit="kg")
+    entry = SimpleNamespace(
+        numeric_delta=None,
+        numeric_value=Decimal(105),
+        manual_percentage=None,
+    )
+    assert progress_log_body(goal, entry) == "now 105 kg on Deadlift 120kg"
+
+
 def test_progress_body_keeps_a_minus_sign_on_a_drop() -> None:
     goal = SimpleNamespace(title="Body fat to 12%", unit="%")
     entry = SimpleNamespace(
