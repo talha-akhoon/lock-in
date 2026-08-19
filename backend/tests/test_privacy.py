@@ -213,11 +213,10 @@ def test_a_checkin_notification_does_not_name_a_private_goal(
     )
 
     body = team_setup.admin_client.get("/api/v1/me/notifications").json()
-    checkins = [
-        row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"
-    ]
-    assert len(checkins) == 1
-    assert SECRET not in checkins[0]["title"]
-    assert SECRET not in (checkins[0]["body"] or "")
+    titles = [row["title"] for row in body["notifications"]]
+    bodies = [row["body"] for row in body["notifications"]]
     types = [row["type"] for row in body["notifications"]]
-    assert "MEMBER_COMPLETED_GOAL" not in types
+
+    assert "MEMBER_CHECKED_IN" not in types
+    assert SECRET not in titles
+    assert SECRET not in bodies

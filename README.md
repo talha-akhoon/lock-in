@@ -35,9 +35,9 @@ the commitment, the daily record, and the reckoning at the end.
    it. If the challenge has not started yet, Check-In also lets you update
    that snapshot.
 7. **Check in.** Each day you update the goals that moved. Streaks and a
-   heatmap use the challenge's own timezone. Teammates see it in the activity
-   feed and get a notification — in the app, and as a phone/desktop push if
-   they installed LockIn and turned that on.
+   heatmap use the challenge's own timezone. Each log pings teammates in the
+   app and, if they turned on push, on their phone — so one more LC problem
+   is one more nudge. Finishing a whole team-visible goal pings them too.
 8. **Optional: connect your own LLM.** ChatGPT custom connectors use OAuth:
    paste the `/mcp` URL, choose OAuth, sign in to LockIn and approve. Cursor
    and Claude take a personal token from Settings. The model can read your
@@ -78,9 +78,9 @@ the commitment, the daily record, and the reckoning at the end.
 - Team dashboard with everyone's progress (private titles redacted).
 - Activity feed of recent updates.
 - **Install as an app** — add LockIn to the Home Screen or desktop. Settings
-  turns on push so a teammate checking in or finishing a goal reaches you when
-  the tab is closed. iPhone only delivers push after you add LockIn to the Home
-  Screen. Private goal titles are never included.
+  turns on push so every time a teammate logs progress or finishes a goal it
+  reaches you when the tab is closed. iPhone only delivers push after you add
+  LockIn to the Home Screen. Private goal titles are never included.
 
 ### MCP
 
@@ -117,9 +117,9 @@ A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
 ### Notifications
 
 In-app (no email): goal-lock warnings, challenge milestones (100 / 30 / 7
-days), challenge complete, a teammate checking in, a teammate finishing a goal,
-and a member joining. Check-ins and completed goals also go out as Web Push to
-devices that have it enabled in Settings.
+days), challenge complete, a teammate logging progress, a teammate finishing a
+goal, and a member joining. Each progress log and each completed team-visible
+goal also go out as Web Push to devices that have it enabled in Settings.
 
 ## Local setup
 

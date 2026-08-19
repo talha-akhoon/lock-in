@@ -90,9 +90,9 @@ export function PwaSettings() {
         <Smartphone /> On this device
       </h2>
       <p className="hint">
-        Install LockIn and turn on push so a teammate checking in or finishing a goal reaches you
-        when the tab is closed. Private goal titles are never included. On iPhone, add LockIn to
-        the Home Screen first — Safari only delivers push to an installed app.
+        Install LockIn and turn on push so every time a teammate logs progress or finishes a goal
+        it reaches you when the tab is closed. Private goal titles are never included. On iPhone,
+        add LockIn to the Home Screen first — Safari only delivers push to an installed app.
       </p>
 
       <div className="admin-row">

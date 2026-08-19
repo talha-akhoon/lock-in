@@ -16,7 +16,13 @@ from app.models.domain import (
 )
 from app.schemas.domain import GoalCreate, GoalUpdate, ProgressCreate
 from app.services import notifications
-from app.services.clock import as_utc, local_date, local_midnight, utcnow
+from app.services.clock import (
+    as_utc,
+    is_before_start,
+    local_date,
+    local_midnight,
+    utcnow,
+)
 from app.services.progress import calculate_goal_progress, goal_is_complete
 
 # Editing any of these after the lock would change what was committed to.
@@ -287,10 +293,18 @@ def add_progress(
     db.add(entry)
     db.flush()
     cascade_completion(db, goal)
-    if team_id and goal.completed_at and not was_complete:
-        notifications.member_completed_goal(
-            db, goal=goal, participant=participant, team_id=team_id
+    if team_id and not is_before_start(participant.challenge):
+        notifications.member_logged_progress(
+            db,
+            goal=goal,
+            participant=participant,
+            team_id=team_id,
+            entry_id=entry.id,
         )
+        if goal.completed_at and not was_complete:
+            notifications.member_completed_goal(
+                db, goal=goal, participant=participant, team_id=team_id
+            )
     return entry
 
 

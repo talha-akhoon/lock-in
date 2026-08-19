@@ -174,11 +174,11 @@ def test_completing_a_goal_sends_web_push(team_setup, make_goal, monkeypatch) ->
         json={"entry_date": "2026-08-14", "numeric_value": "120"},
     )
 
-    assert len(sent) == 1
-    assert sent[0]["subscription_info"]["endpoint"] == ENDPOINT
-    payload = sent[0]["data"]
-    assert "Teammate completed a goal" in payload
-    assert "Deadlift 120kg" in payload
+    assert len(sent) == 2
+    payloads = " ".join(item["data"] for item in sent)
+    assert "Teammate logged progress" in payloads
+    assert "Teammate completed a goal" in payloads
+    assert "Deadlift 120kg" in payloads
 
 
 def test_a_checkin_sends_web_push(team_setup, make_goal, monkeypatch) -> None:
@@ -207,8 +207,8 @@ def test_a_checkin_sends_web_push(team_setup, make_goal, monkeypatch) -> None:
     )
 
     assert len(sent) == 1
-    assert "Teammate checked in" in sent[0]["data"]
-    assert "Deadlift" not in sent[0]["data"]
+    assert "Teammate logged progress" in sent[0]["data"]
+    assert "Deadlift 120kg" in sent[0]["data"]
 
 
 def test_a_gone_subscription_is_dropped(team_setup, make_goal, monkeypatch, db) -> None:
@@ -256,3 +256,36 @@ def test_the_actor_does_not_receive_push_for_their_own_checkin(
     )
 
     assert sent == []
+
+
+def test_two_progress_logs_send_two_pushes(team_setup, make_goal, monkeypatch) -> None:
+    from decimal import Decimal
+
+    sent: list[dict] = []
+
+    def fake_webpush(**kwargs):
+        sent.append(kwargs)
+        return _Response(201)
+
+    monkeypatch.setattr("app.services.push.webpush", fake_webpush)
+    team_setup.admin_client.post(
+        "/api/v1/me/push/subscriptions",
+        json={"endpoint": ENDPOINT, "keys": KEYS},
+    )
+    goal = make_goal(
+        team_setup.member_participant,
+        title="LeetCode problems",
+        tracking_type="COUNT",
+        baseline_value=Decimal(0),
+        current_value=Decimal(0),
+        target_value=Decimal(150),
+        unit="problems",
+    )
+    for _ in range(2):
+        team_setup.member_client.post(
+            f"/api/v1/goals/{goal.id}/progress",
+            json={"entry_date": "2026-08-14", "numeric_delta": "1"},
+        )
+
+    assert len(sent) == 2
+    assert all("Teammate logged progress" in item["data"] for item in sent)

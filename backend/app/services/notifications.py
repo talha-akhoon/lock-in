@@ -7,7 +7,7 @@ notification.
 """
 
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -205,29 +205,25 @@ def member_completed_goal(
     )
 
 
-def member_checked_in(
+def member_logged_progress(
     db: Session,
     *,
+    goal: Goal,
     participant: ChallengeParticipant,
     team_id: uuid.UUID,
-    day: date,
-    updates: int,
+    entry_id: uuid.UUID,
 ) -> None:
-    """Tell the team someone logged a day, without leaking what they logged."""
-    name = participant.user.display_name
-    if updates:
-        noun = "goal" if updates == 1 else "goals"
-        body = f"Logged progress on {updates} {noun}"
-    else:
-        body = "Left a check-in note"
+    """Ping the team on every log, without leaking a private goal's title."""
+    if goal.visibility == GoalVisibility.PRIVATE:
+        return
     notify_team(
         db,
         team_id=team_id,
         challenge_id=participant.challenge_id,
         kind=NotificationType.MEMBER_CHECKED_IN,
-        dedupe_key=f"checkin:{participant.id}:{day.isoformat()}",
-        title=f"{name} checked in",
-        body=body,
+        dedupe_key=f"progress:{entry_id}",
+        title=f"{participant.user.display_name} logged progress",
+        body=goal.title,
         link_path=f"/team/members/{participant.user_id}",
         exclude_user_id=participant.user_id,
     )

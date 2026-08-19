@@ -71,7 +71,7 @@ describe('settings MCP tokens', () => {
     renderWithAuth(<SettingsPage />, makeAuth())
 
     expect(await screen.findByRole('heading', { name: /on this device/i })).toBeInTheDocument()
-    expect(screen.getByText(/teammate checking in or finishing a goal/i)).toBeInTheDocument()
+    expect(screen.getByText(/teammate logs progress or finishes a goal/i)).toBeInTheDocument()
     expect(screen.getByText(/not available in this browser/i)).toBeInTheDocument()
   })
 })
