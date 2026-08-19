@@ -2,7 +2,7 @@
 
 Deadline rows are still generated lazily when the feed is read. Check-in, streak,
 quiet and pace nudges (and a second pass of the deadline rows for lock-screen
-push) are inserted by the daily evening dispatch job.
+push) are inserted by the hourly dispatch job.
 """
 
 import uuid

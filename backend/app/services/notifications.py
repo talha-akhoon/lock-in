@@ -1,6 +1,6 @@
 """Pressure nudges plus muteable Web Push on deadlines.
 
-A daily GitHub Action (and any caller with the dispatch token) runs `run()`
+A GitHub Action each hour (and any caller with the dispatch token) runs `run()`
 so people who have not opened the app still get lock-screen pings. Inserts are
 still keyed on (user, type, dedupe_key).
 """

@@ -1,11 +1,12 @@
 # Evening pressure nudges. People who have not opened the app still get
 # lock-screen pings (if they enabled push) and in-app bell rows.
-# 20:00 UTC is 20:00 GMT / 21:00 BST — evening in Europe/London either side of DST.
+# Hourly so a challenge in Tokyo (or any IANA zone) still hits local evening:
+# the app only sends due/streak/pace when challenge-local hour >= 20.
 name: Notifications
 
 on:
   schedule:
-    - cron: "0 20 * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:
