@@ -275,6 +275,7 @@ def add_progress(
 ) -> GoalProgressEntry:
     data = payload.model_dump()
     evidence = data.pop("evidence_url")
+    previous_value = goal.current_value
     entry = GoalProgressEntry(
         goal_id=goal.id,
         user_id=user_id,
@@ -310,7 +311,8 @@ def add_progress(
                 goal=goal,
                 participant=participant,
                 team_id=team_id,
-                entry_id=entry.id,
+                entry=entry,
+                previous_value=previous_value,
             )
     return entry
 
