@@ -95,11 +95,24 @@ export function GoalsPage() {
       {items.length === 0 ? (
         <Empty
           title="No goals yet"
-          body="Start with the area that matters most. The wizard walks you through all five."
+          body={
+            locked
+              ? 'Your window closed before you added any. You can still add goals — each one joins your commitment as you add it.'
+              : 'Start with the area that matters most. The wizard walks you through all five.'
+          }
         >
-          <Link className="primary" to="/onboarding/goals">
-            Open the goal wizard
-          </Link>
+          {locked ? (
+            // The wizard redirects away once locked, so adding is the real path.
+            canAdd && (
+              <button className="primary" onClick={() => setComposing(true)}>
+                <Plus /> Add goal
+              </button>
+            )
+          ) : (
+            <Link className="primary" to="/onboarding/goals">
+              Open the goal wizard
+            </Link>
+          )}
         </Empty>
       ) : (
         CATEGORY_ORDER.map((category) => {
