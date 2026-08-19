@@ -116,6 +116,7 @@ def test_a_teammate_completing_a_goal_is_announced(team_setup, make_goal) -> Non
     assert len(completions) == 1
     assert completions[0]["title"] == "Teammate completed a goal"
     assert completions[0]["body"] == "Deadlift 120kg"
+    assert "MEMBER_CHECKED_IN" not in types_for(team_setup.admin_client)
 
 
 def test_the_owner_is_not_notified_about_their_own_completion(
@@ -178,6 +179,20 @@ def test_each_progress_log_notifies_again(team_setup, make_goal) -> None:
     logs = [row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"]
     assert len(logs) == 2
     assert all(row["body"] == "LeetCode problems" for row in logs)
+
+
+def test_html_entities_in_a_goal_title_are_shown_as_text(team_setup, make_goal) -> None:
+    goal = make_goal(
+        team_setup.member_participant, title="Lock the design &amp; branding"
+    )
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "91"},
+    )
+
+    body = team_setup.admin_client.get("/api/v1/me/notifications").json()
+    logs = [row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"]
+    assert logs[0]["body"] == "Lock the design & branding"
 
 
 def test_a_starting_point_snapshot_does_not_announce_progress(
