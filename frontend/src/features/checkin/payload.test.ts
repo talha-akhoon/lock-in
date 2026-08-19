@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { makeGoal } from '../../test/factories'
-import { buildCheckinPayload, buildCheckinUpdates, checkinTargets } from './payload'
+import {
+  applyCheckinUpdates,
+  buildCheckinPayload,
+  buildCheckinUpdates,
+  checkinTargets,
+  formStateAfterSave,
+} from './payload'
 
 describe('check-in payload', () => {
   it('sends a numeric goal as an absolute value', () => {
@@ -50,6 +56,13 @@ describe('check-in payload', () => {
     expect(buildCheckinUpdates([goal], { [goal.id]: false })).toEqual([
       { goal_id: goal.id, completed: false },
     ])
+  })
+
+  it('reopens a tick against the last saved form, even if completed_at is stale', () => {
+    const goal = makeGoal({ tracking_type: 'MILESTONE' })
+    expect(
+      buildCheckinUpdates([goal], { [goal.id]: false }, false, { [goal.id]: true }),
+    ).toEqual([{ goal_id: goal.id, completed: false }])
   })
 
   it('skips a milestone whose state has not changed', () => {
@@ -107,5 +120,25 @@ describe('check-in payload', () => {
     expect(
       buildCheckinPayload([], {}, { date: '2026-01-05', note: '  Tough one  ' }).note,
     ).toBe('Tough one')
+  })
+
+  it('clears count deltas after a save so they are not sent twice', () => {
+    const count = makeGoal({ tracking_type: 'COUNT', target_value: 10 })
+    const milestone = makeGoal({ tracking_type: 'MILESTONE' })
+    const state = { [count.id]: '3', [milestone.id]: true }
+    expect(formStateAfterSave(state, [count, milestone])).toEqual({
+      [count.id]: '',
+      [milestone.id]: true,
+    })
+    expect(formStateAfterSave(state, [count], true)[count.id]).toBe('3')
+  })
+
+  it('applies a completion flag onto cached goals', () => {
+    const goal = makeGoal({ tracking_type: 'MILESTONE' })
+    const [updated] = applyCheckinUpdates([goal], [{ goal_id: goal.id, completed: true }])
+    expect(updated.completed_at).toBeTruthy()
+    expect(updated.progress_percentage).toBe(100)
+    const [reopened] = applyCheckinUpdates([updated], [{ goal_id: goal.id, completed: false }])
+    expect(reopened.completed_at).toBeNull()
   })
 })

@@ -1,10 +1,11 @@
 import { CalendarCheck, Check, Flame } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Empty, ErrorState, Loading, PageHeader, Progress } from '../components/primitives'
 import {
   buildCheckinPayload,
   checkinTargets,
+  formStateAfterSave,
   type CheckinFormState,
 } from '../features/checkin/payload'
 import { useDayCheckin, useHeatmap, useSaveCheckin } from '../hooks/queries'
@@ -32,12 +33,14 @@ export function CheckInPage() {
   const heatmap = useHeatmap()
   const save = useSaveCheckin()
   const [state, setState] = useState<CheckinFormState>({})
+  const [saved, setSaved] = useState<CheckinFormState>({})
   const [note, setNote] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
   const goals = useMemo(() => checkin.data?.goals ?? [], [checkin.data])
   const preStart = Boolean(checkin.data?.pre_start || heatmap.data?.pre_start)
+  const hydratedDate = useRef<string | null>(null)
 
   useEffect(() => {
     if (heatmap.data?.pre_start && heatmap.data.today !== day) {
@@ -47,7 +50,11 @@ export function CheckInPage() {
 
   useEffect(() => {
     if (!checkin.data) return
-    setState(initialState(checkin.data.goals, checkin.data.pre_start))
+    if (hydratedDate.current === checkin.data.date) return
+    hydratedDate.current = checkin.data.date
+    const next = initialState(checkin.data.goals, checkin.data.pre_start)
+    setState(next)
+    setSaved(next)
     setNote(checkin.data.note ?? '')
     setMessage('')
     setError('')
@@ -59,13 +66,21 @@ export function CheckInPage() {
     event.preventDefault()
     setError('')
     setMessage('')
-    const payload = buildCheckinPayload(goals, state, { date: day, note, baseline: preStart })
+    const payload = buildCheckinPayload(goals, state, {
+      date: day,
+      note,
+      baseline: preStart,
+      saved,
+    })
     if (!payload.updates.length && !payload.note) {
       setError('Nothing to save yet — update a goal or leave a note.')
       return
     }
     try {
       await save.mutateAsync(payload)
+      const next = formStateAfterSave(state, goals, preStart)
+      setState(next)
+      setSaved(next)
       setMessage(
         payload.updates.length
           ? `Saved. ${payload.updates.length} ${payload.updates.length === 1 ? 'goal' : 'goals'} updated.`
