@@ -132,7 +132,7 @@ behind on a required goal (Sunday evening, after a week's grace). Mute any of
 those in Settings — muted types skip the bell and push.
 
 Every type except "someone joined" also goes out as Web Push to devices that
-have it enabled. A daily GitHub Action (20:07 UTC, evening in London) calls an
+have it enabled. A daily GitHub Action (20:00 UTC, evening in London) calls an
 internal dispatch endpoint so people who have not opened the app still get
 lock-screen pings. Locally you can hit the same endpoint with
 `X-LockIn-Dispatch` (HMAC of `SECRET_KEY`).
@@ -355,7 +355,8 @@ CI (`.github/workflows/ci.yml`) runs on every push and pull request. On
 the image to Artifact Registry and updates Cloud Run. The Cloudflare Worker
 is deployed separately with Wrangler, not from Actions. **Deploy** is a
 manual-only fallback. **Notifications** (`.github/workflows/notifications.yml`)
-runs daily at 20:07 UTC (20:07 GMT / 21:07 BST): it mints a Google ID token for `lockin-github` (audience
+runs once a day at 20:00 UTC — 20:00 in winter, 21:00 in summer, both evening
+in London. It mints a Google ID token for `lockin-github` (audience
 `https://lockin.talhaakhoon.dev`) and POSTs
 `/api/v1/internal/notifications/dispatch`. No extra secret.
 
