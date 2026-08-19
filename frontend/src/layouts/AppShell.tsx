@@ -139,23 +139,23 @@ export function AppShell() {
               </NavLink>
             </>
           )}
-        </nav>
-        <div className="sidebar-bottom">
-          <NavLink to="/settings" onClick={() => setOpen(false)}>
-            <Settings /> Settings
-          </NavLink>
-          <div className="user-chip">
-            {auth.user.avatar_url ? (
-              <img src={auth.user.avatar_url} alt="" />
-            ) : (
-              <CircleUserRound />
-            )}
-            <div>
-              <b>{auth.user.display_name}</b>
-              <span>{auth.role}</span>
+          <div className="sidebar-bottom">
+            <NavLink to="/settings" onClick={() => setOpen(false)}>
+              <Settings /> Settings
+            </NavLink>
+            <div className="user-chip">
+              {auth.user.avatar_url ? (
+                <img src={auth.user.avatar_url} alt="" />
+              ) : (
+                <CircleUserRound />
+              )}
+              <div>
+                <b>{auth.user.display_name}</b>
+                <span>{auth.role}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </nav>
       </aside>
       <div className="main-column">
         <header className="topbar">

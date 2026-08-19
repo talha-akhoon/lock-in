@@ -79,14 +79,16 @@ describe('app shell', () => {
     renderRoutes(tree(makeAuth({ role: 'ADMIN' })), '/dashboard')
     const user = userEvent.setup()
 
-    await user.click(await screen.findByRole('button', { name: 'More' }))
+    const more = await screen.findByRole('button', { name: 'More' })
+    await user.click(more)
     const menu = screen.getByRole('navigation', { name: 'Menu' })
     expect(within(menu).getByRole('link', { name: 'Activity' })).toBeInTheDocument()
     expect(within(menu).getByRole('link', { name: 'Settings' })).toBeInTheDocument()
     expect(within(menu).getByRole('link', { name: 'Admin' })).toBeInTheDocument()
+    expect(more).toHaveAttribute('aria-expanded', 'true')
 
     await user.click(screen.getByRole('button', { name: 'Close menu' }))
-    expect(screen.queryByRole('button', { name: 'Close menu' })).not.toBeInTheDocument()
+    expect(more).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('keeps the check-in tab short before kick-off', async () => {
