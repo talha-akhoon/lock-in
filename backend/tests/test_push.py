@@ -174,11 +174,10 @@ def test_completing_a_goal_sends_web_push(team_setup, make_goal, monkeypatch) ->
         json={"entry_date": "2026-08-14", "numeric_value": "120"},
     )
 
-    assert len(sent) == 2
-    payloads = " ".join(item["data"] for item in sent)
-    assert "Teammate logged progress" in payloads
-    assert "Teammate completed a goal" in payloads
-    assert "Deadlift 120kg" in payloads
+    assert len(sent) == 1
+    assert "Teammate completed a goal" in sent[0]["data"]
+    assert "Teammate logged progress" not in sent[0]["data"]
+    assert "Deadlift 120kg" in sent[0]["data"]
 
 
 def test_a_checkin_sends_web_push(team_setup, make_goal, monkeypatch) -> None:

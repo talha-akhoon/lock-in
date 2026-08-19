@@ -12,6 +12,17 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(fetch(event.request))
 })
 
+function decodeEntities(value) {
+  if (!value) return value
+  return String(value)
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+}
+
 self.addEventListener('push', (event) => {
   let payload = { title: 'LockIn', body: '', url: '/', tag: 'lockin' }
   try {
@@ -19,6 +30,8 @@ self.addEventListener('push', (event) => {
   } catch {
     payload.body = event.data ? event.data.text() : ''
   }
+  payload.title = decodeEntities(payload.title)
+  payload.body = decodeEntities(payload.body)
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({
