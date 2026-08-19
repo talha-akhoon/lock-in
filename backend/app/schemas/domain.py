@@ -130,6 +130,10 @@ class GoalCreate(GoalBase):
     parent_goal_id: uuid.UUID | None = None
 
 
+class GoalChildrenOrder(BaseModel):
+    ordered_ids: list[uuid.UUID] = Field(min_length=1)
+
+
 class GoalUpdate(BaseModel):
     category: GoalCategory | None = None
     title: str | None = Field(default=None, min_length=1, max_length=255)

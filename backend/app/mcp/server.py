@@ -26,7 +26,7 @@ from app.models.domain import (
     TargetDirection,
     TrackingType,
 )
-from app.schemas.domain import CheckinUpdate, GoalCreate, GoalUpdate
+from app.schemas.domain import CheckinUpdate, GoalChildrenOrder, GoalCreate, GoalUpdate
 from app.services.mcp_tokens import authenticate as authenticate_mcp_token
 from app.services.oauth import origin_from_headers, www_authenticate
 
@@ -60,7 +60,9 @@ flipping required (which decides the forfeit) or visibility, confirm that
 explicitly, and confirm the title, tracking type or starting point when those
 are what you are changing. Once a commitment is locked the wording and targets
 are final — only visibility and ordering can still change, and any other edit
-is rejected.
+is rejected. Use reorder_goal_steps to change the display order of steps under
+a parent goal; that order is what check-in uses, and it still works after the
+lock.
 """
 
 
@@ -259,6 +261,27 @@ def update_goal(
     except ValidationError as exc:
         raise ToolError(_validation_message(exc)) from exc
     return _run(impl.update_goal, goal_id=parsed_id, payload=payload)
+
+
+@mcp.tool()
+def reorder_goal_steps(goal_id: str, ordered_ids: list[str]) -> dict:
+    """Set the display order of the steps under a parent goal. Pass the parent
+    goal_id (from get_my_goals) and every child id exactly once, in the order
+    they should appear on the goal and in check-in. Display order can change
+    even after the commitment locks.
+    """
+    try:
+        parsed_id = UUID(goal_id)
+        parsed_children = [UUID(item) for item in ordered_ids]
+    except ValueError as exc:
+        raise ToolError("goal_id and ordered_ids must be UUIDs") from exc
+    try:
+        payload = GoalChildrenOrder(ordered_ids=parsed_children)
+    except ValidationError as exc:
+        raise ToolError(_validation_message(exc)) from exc
+    return _run(
+        impl.reorder_goal_steps, goal_id=parsed_id, ordered_ids=payload.ordered_ids
+    )
 
 
 @mcp.tool()

@@ -244,6 +244,17 @@ def update_goal(
     return serializers.goal_detail(goal)
 
 
+def reorder_goal_steps(
+    db: Session, user: User, *, goal_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> dict:
+    membership = require_membership(db, user)
+    challenge = require_challenge(db, membership)
+    participant = require_participant(db, challenge, user)
+    goal = goal_service.require_goal(db, goal_id, participant)
+    goal_service.reorder_children(db, goal, ordered_ids)
+    return serializers.goal_detail(goal)
+
+
 def log_checkin(
     db: Session,
     user: User,

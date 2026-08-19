@@ -29,8 +29,9 @@ the commitment, the daily record, and the reckoning at the end.
    targets and descriptions become final, and goals can no longer be removed.
    You can still **add** new goals or sub-steps right up until the challenge
    ends — adding only strengthens the commitment — and a goal added after the
-   lock joins it immediately. Visibility and display order can still change. An
-   admin can temporarily reopen a commitment; that is audited.
+   lock joins it immediately. Visibility and the display order of goals and
+   steps can still change. An admin can temporarily reopen a commitment; that
+   is audited.
 6. **Starting point.** You set where you are now on each goal when you write
    it. If the challenge has not started yet, Check-In also lets you update
    that snapshot.
@@ -72,7 +73,9 @@ the commitment, the daily record, and the reckoning at the end.
     moved (a side project you cannot count cleanly).
 - **Steps** — optional one-level sub-goals. You check in on the steps; the
   parent averages its required children. Use this when the work is a few named
-  finish-lines, not when you already have a running total.
+  finish-lines, not when you already have a running total. Drag them into the
+  order you want; that order is what check-in uses, and it can still change
+  after the lock.
 - In-app **?** buttons next to tracking method and Add step explain the above.
 
 ### Daily accountability
@@ -112,7 +115,8 @@ A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
 - Add goals and sub-steps any time until the challenge ends, even after your
   commitment locks — adding only strengthens it. Editing wording or targets is
   only possible before the lock; once locked, the model can change just
-  visibility and ordering, and can never remove a goal.
+  visibility and ordering (including the order of steps under a goal), and can
+  never remove a goal.
 - Log today's check-in.
 - Revoke a token from Settings if it leaks (OAuth connections appear as
   “ChatGPT”). Connecting shares that member's view of the team with their LLM

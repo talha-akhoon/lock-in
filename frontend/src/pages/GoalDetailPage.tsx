@@ -9,6 +9,7 @@ import {
   Pill,
   Progress,
 } from '../components/primitives'
+import { GoalSteps } from '../features/goals/GoalSteps'
 import { useGoalHistory } from '../hooks/queries'
 import { CATEGORY_META, TRACKING_LABELS } from '../lib/categories'
 import { formatAmount, formatDate, formatDateTime, goalValueLabel } from '../lib/format'
@@ -110,15 +111,7 @@ export function GoalDetailPage() {
               <h2>Steps</h2>
             </div>
           </div>
-          {goal.children.map((child) => (
-            <div className="subgoal" key={child.id}>
-              <span>
-                <Link to={`/goals/${child.id}`}>{child.title}</Link>
-              </span>
-              <Progress value={child.progress_percentage} tone="muted" />
-              <b>{Math.round(child.progress_percentage)}%</b>
-            </div>
-          ))}
+          <GoalSteps parent={goal} linkTitles />
         </section>
       )}
 

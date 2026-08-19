@@ -14,7 +14,7 @@ from app.dependencies.auth import (
     require_csrf,
 )
 from app.models.domain import ChallengeParticipant, TeamMember, User
-from app.schemas.domain import GoalCreate, GoalUpdate, ProgressCreate
+from app.schemas.domain import GoalChildrenOrder, GoalCreate, GoalUpdate, ProgressCreate
 from app.services import goals as goal_service
 
 router = APIRouter(tags=["goals"])
@@ -82,6 +82,19 @@ def update_goal(
 ) -> dict:
     goal = goal_service.require_goal(db, goal_id, participant)
     goal_service.update_goal(db, participant, goal, payload)
+    db.commit()
+    return serializers.goal_detail(goal)
+
+
+@router.patch("/goals/{goal_id}/children/order", dependencies=[Depends(require_csrf)])
+def reorder_goal_children(
+    goal_id: uuid.UUID,
+    payload: GoalChildrenOrder,
+    participant: ChallengeParticipant = Depends(get_participant),
+    db: Session = Depends(get_db),
+) -> dict:
+    goal = goal_service.require_goal(db, goal_id, participant)
+    goal_service.reorder_children(db, goal, payload.ordered_ids)
     db.commit()
     return serializers.goal_detail(goal)
 
