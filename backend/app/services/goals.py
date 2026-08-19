@@ -17,7 +17,7 @@ from app.models.domain import (
 from app.schemas.domain import GoalCreate, GoalUpdate, ProgressCreate
 from app.services import notifications
 from app.services.clock import as_utc, local_date, local_midnight, utcnow
-from app.services.progress import goal_is_complete
+from app.services.progress import calculate_goal_progress, goal_is_complete
 
 # Editing any of these after the lock would change what was committed to.
 # `visibility` stays mutable (revealing a personal goal changes nothing about
@@ -40,10 +40,27 @@ IMMUTABLE_GOAL_FIELDS = frozenset(
 )
 
 GOALS_LOCKED = {"code": "GOALS_LOCKED", "message": "Your commitment is locked"}
+CHALLENGE_OVER = {"code": "CHALLENGE_OVER", "message": "This challenge has ended"}
+# The first child switches a parent from its own tracking to the mean of its
+# children, discarding the parent's committed progress. That is a rewrite, not
+# an addition, so it is refused once locked (before the lock you could undo it
+# by deleting the child).
+LOCKED_STEP_REWRITE = {
+    "code": "GOALS_LOCKED",
+    "message": "This goal already has progress; adding a first step would reset it",
+}
 
 
 def locked_conflict() -> HTTPException:
     return HTTPException(status.HTTP_409_CONFLICT, detail=GOALS_LOCKED)
+
+
+def challenge_over_conflict() -> HTTPException:
+    return HTTPException(status.HTTP_409_CONFLICT, detail=CHALLENGE_OVER)
+
+
+def challenge_has_ended(challenge: Challenge) -> bool:
+    return utcnow() >= as_utc(challenge.end_at)
 
 
 def goal_submission_deadline(challenge: Challenge, joined_at: datetime) -> datetime:
@@ -115,8 +132,12 @@ def require_goal(
 def create_goal(
     db: Session, participant: ChallengeParticipant, payload: GoalCreate
 ) -> Goal:
-    if sync_participant_lock(db, participant):
-        raise locked_conflict()
+    # Adding a goal or sub-goal only ever *strengthens* a commitment, so unlike
+    # editing or deleting it stays open after the lock. It closes only once the
+    # challenge itself is over, when new goals could disturb scored outcomes.
+    locked = sync_participant_lock(db, participant)
+    if challenge_has_ended(participant.challenge):
+        raise challenge_over_conflict()
     parent: Goal | None = None
     if payload.parent_goal_id:
         parent = db.get(Goal, payload.parent_goal_id)
@@ -126,6 +147,15 @@ def create_goal(
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, "One nesting level only"
             )
+        # Adding a *further* step to a parent that already groups children only
+        # raises the bar. Adding the *first* step to a parent that has banked
+        # progress throws that progress away, which the lock must not permit.
+        if (
+            locked
+            and not parent.children
+            and (parent.completed_at is not None or calculate_goal_progress(parent) > 0)
+        ):
+            raise HTTPException(status.HTTP_409_CONFLICT, detail=LOCKED_STEP_REWRITE)
     data = payload.model_dump()
     if parent is not None:
         # Children render nested under their parent, so a category of their own
@@ -134,8 +164,19 @@ def create_goal(
     if payload.tracking_type == TrackingType.NUMERIC and data["baseline_value"] is None:
         data["baseline_value"] = data["current_value"] or 0
     goal = Goal(challenge_participant_id=participant.id, **data)
+    if locked:
+        # Added after the commitment locked: it joins the lock right away, so it
+        # can be added but not later edited or removed.
+        goal.locked_at = participant.goals_locked_at
     db.add(goal)
     db.flush()
+    if parent is not None:
+        # The parent's children may have been loaded (by the guard above) before
+        # this child existed; refresh so the cascade counts it.
+        db.expire(parent, ["children"])
+        # A new required step can un-complete a parent that was marked done, so
+        # its checkmark stays in step with the score the forfeit reads.
+        cascade_completion(db, goal)
     return goal
 
 

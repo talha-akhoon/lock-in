@@ -13,12 +13,15 @@ export function GoalCard({
   onDelete,
   onAddChild,
   editable,
+  canAddChild,
 }: {
   goal: Goal
   onEdit?: (goal: Goal) => void
   onDelete?: (goal: Goal) => void
   onAddChild?: (goal: Goal) => void
   editable?: boolean
+  // Adding a step is allowed even once locked; deleting/editing is not.
+  canAddChild?: boolean
 }) {
   const complete = Boolean(goal.completed_at)
   return (
@@ -77,7 +80,7 @@ export function GoalCard({
             <Pencil /> Edit
           </button>
         )}
-        {editable && onAddChild && !goal.parent_goal_id && (
+        {canAddChild && onAddChild && !goal.parent_goal_id && (
           <span className="with-info">
             <button className="ghost small" onClick={() => onAddChild(goal)}>
               <Plus /> Add step

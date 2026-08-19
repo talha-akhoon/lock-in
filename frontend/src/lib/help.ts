@@ -72,7 +72,7 @@ export const TRACKING_HELP_INTRO =
 export const STEP_HELP_TITLE = 'What is a step?'
 
 export const STEP_HELP_BODY =
-  'A step is a named piece of this goal. You check in on the steps, not the parent. The parent’s progress is the average of its required steps.'
+  'A step is a named piece of this goal. You check in on the steps, not the parent. The parent’s progress is the average of its required steps. The first step replaces the parent’s own figure with that average, and once locked you cannot remove it — so add steps before you commit.'
 
 export const STEP_HELP_WHEN =
-  'Use it when the work splits into a few finish-lines — “Ship the app” with “Finish the API” and “Finish the UI”. Skip it for a running total you already measure, like 150 pages of reading.'
+  'Use it when the work splits into a few finish-lines — “Ship the app” with “Finish the API” and “Finish the UI”. Skip it for a running total you already measure, like 150 pages of reading — turning that into steps throws the figure away, and once locked that is refused.'

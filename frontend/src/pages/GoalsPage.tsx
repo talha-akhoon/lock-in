@@ -28,6 +28,10 @@ export function GoalsPage() {
 
   const data = goals.data
   const locked = Boolean(data?.goals_locked)
+  // Adding only strengthens a commitment, so it stays open after the lock and
+  // closes only once the challenge is over.
+  const challengeOver = auth.challenge_status === 'COMPLETED'
+  const canAdd = !challengeOver
   const items = data?.goals ?? []
 
   async function submit(input: GoalInput) {
@@ -52,7 +56,7 @@ export function GoalsPage() {
             : 'Choose carefully. These goals become your contract.'
         }
       >
-        {!locked && (
+        {canAdd && (
           <button className="primary" onClick={() => setComposing(true)}>
             <Plus /> Add goal
           </button>
@@ -64,7 +68,11 @@ export function GoalsPage() {
           <LockKeyhole />
           <div>
             <b>Your commitment is locked</b>
-            <span>Targets and structure can no longer be changed. Visibility still can.</span>
+            <span>
+              {challengeOver
+                ? 'This challenge has ended.'
+                : 'You can still add goals and steps, but existing ones can no longer be changed or removed.'}
+            </span>
           </div>
         </div>
       ) : (
@@ -87,11 +95,24 @@ export function GoalsPage() {
       {items.length === 0 ? (
         <Empty
           title="No goals yet"
-          body="Start with the area that matters most. The wizard walks you through all five."
+          body={
+            locked
+              ? 'Your window closed before you added any. You can still add goals — each one joins your commitment as you add it.'
+              : 'Start with the area that matters most. The wizard walks you through all five.'
+          }
         >
-          <Link className="primary" to="/onboarding/goals">
-            Open the goal wizard
-          </Link>
+          {locked ? (
+            // The wizard redirects away once locked, so adding is the real path.
+            canAdd && (
+              <button className="primary" onClick={() => setComposing(true)}>
+                <Plus /> Add goal
+              </button>
+            )
+          ) : (
+            <Link className="primary" to="/onboarding/goals">
+              Open the goal wizard
+            </Link>
+          )}
         </Empty>
       ) : (
         CATEGORY_ORDER.map((category) => {
@@ -108,6 +129,7 @@ export function GoalsPage() {
                   key={goal.id}
                   goal={goal}
                   editable={!locked}
+                  canAddChild={canAdd}
                   onEdit={setEditing}
                   onDelete={locked ? undefined : setDeleting}
                   onAddChild={(target) => {
@@ -136,6 +158,7 @@ export function GoalsPage() {
       {composing && (
         <GoalForm
           parent={parent ?? undefined}
+          lockedNotice={locked}
           onSubmit={submit}
           onClose={() => {
             setComposing(false)

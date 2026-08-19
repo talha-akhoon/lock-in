@@ -47,6 +47,7 @@ export function GoalForm({
   parent,
   category,
   lockedFields,
+  lockedNotice,
   onSubmit,
   onClose,
   pending,
@@ -59,6 +60,8 @@ export function GoalForm({
   category?: Category
   /** After commitment only visibility and ordering may change. */
   lockedFields?: boolean
+  /** Adding while locked: the addition joins the lock and cannot be undone. */
+  lockedNotice?: boolean
   onSubmit: (input: GoalInput) => void
   onClose: () => void
   pending?: boolean
@@ -89,6 +92,12 @@ export function GoalForm({
         )}
         noValidate
       >
+        {lockedNotice && (
+          <p className="locked-fact">
+            Your commitment is locked, so this joins it immediately — you won’t be able to edit or
+            remove it. A Required goal is scored for the forfeit.
+          </p>
+        )}
         <label>
           Category
           <select {...register('category')} disabled={lockedFields || Boolean(parent)}>

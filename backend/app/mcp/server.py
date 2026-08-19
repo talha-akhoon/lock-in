@@ -42,12 +42,17 @@ private goals.
 Before log_checkin, call get_my_goals and get_my_checkin so you use real
 goal ids and the challenge's today. Only the caller can be checked in.
 
-Use add_goal only for the caller and only before their commitment locks; it
-fails once goals are locked. It skips the goal wizard's review step, so before
-you call it confirm with them: the title, the tracking type and starting
-point, whether the goal is required or optional (required goals decide the
-forfeit, and it defaults to required), and whether it is TEAM-visible or
-PRIVATE.
+Use add_goal only for the caller. Adding a goal or a sub-goal keeps working
+even after the commitment locks — it only strengthens it — and fails only once
+the challenge itself has ended. A goal added after the lock cannot be edited or
+removed afterwards, so it skips the wizard's review step: before you call it
+confirm with them the title, the tracking type and starting point, whether the
+goal is required or optional, and whether it is TEAM-visible or PRIVATE.
+required defaults to true, and a required add after the lock enlarges the
+forfeit set — call that out explicitly when they are locked. Pass
+parent_goal_id to add a sub-goal (step); but do not add the *first* step to a
+goal that is already tracked with its own progress — it would replace that
+progress with the steps' average, and once locked the server refuses it.
 
 Use update_goal to change the caller's own goal; pass only the fields you
 want to change. Confirm the change first, the same way as add_goal: if you are
@@ -151,10 +156,17 @@ def add_goal(
     required: bool = True,
     parent_goal_id: str | None = None,
 ) -> dict:
-    """Create a goal for the caller. Only works before the commitment is locked.
+    """Create a goal for the caller. Works while the challenge is running, even
+    after the commitment is locked — adding only strengthens it. Fails once the
+    challenge has ended. A goal added after the lock cannot be edited or removed
+    later, and a required one enlarges the forfeit set — confirm required vs
+    optional explicitly when they are locked.
 
     Confirm the details with the caller first — this skips the goal wizard's
-    review step.
+    review step. Pass parent_goal_id to add a sub-goal (step); but do not add
+    the first step to a goal that already tracks its own progress — it replaces
+    that progress with the steps' average, and once locked the server refuses
+    it.
 
     tracking_type picks what to fill in:
       MILESTONE  done / not done; leave the numeric fields empty.
