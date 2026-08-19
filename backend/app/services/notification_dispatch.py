@@ -1,4 +1,4 @@
-"""Hourly nudges for people who have not opened the app."""
+"""Evening nudges for people who have not opened the app."""
 
 from __future__ import annotations
 

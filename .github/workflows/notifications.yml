@@ -1,10 +1,11 @@
-# Hourly pressure nudges. People who have not opened the app still get
+# Evening pressure nudges. People who have not opened the app still get
 # lock-screen pings (if they enabled push) and in-app bell rows.
+# 20:07 UTC is 20:07 GMT / 21:07 BST — evening in Europe/London either side of DST.
 name: Notifications
 
 on:
   schedule:
-    - cron: "7 * * * *"
+    - cron: "7 20 * * *"
   workflow_dispatch:
 
 permissions:

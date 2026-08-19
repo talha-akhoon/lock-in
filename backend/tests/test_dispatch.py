@@ -1,4 +1,4 @@
-"""Hourly nudges, mute preferences, and the dispatch endpoint's HMAC gate."""
+"""Evening nudges, mute preferences, and the dispatch endpoint's HMAC gate."""
 
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo

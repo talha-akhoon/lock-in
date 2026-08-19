@@ -38,7 +38,7 @@ the commitment, the daily record, and the reckoning at the end.
    heatmap use the challenge's own timezone. Each log pings teammates in the
    app and, if they turned on push, on their phone — so one more LC problem
    is one more nudge. Finishing a whole team-visible goal pings them too.
-   An hourly job also pings you in the evening if you have not checked in,
+   A daily evening job also pings you if you have not checked in,
    if a streak is about to die, if a teammate has gone quiet for three days,
    or (Sunday evening) if a required goal is behind the expected pace.
    Deadline reminders — goals lock tomorrow, 100 / 30 / 7 days left, challenge
@@ -132,9 +132,10 @@ behind on a required goal (Sunday evening, after a week's grace). Mute any of
 those in Settings — muted types skip the bell and push.
 
 Every type except "someone joined" also goes out as Web Push to devices that
-have it enabled. An hourly GitHub Action calls an internal dispatch endpoint
-so people who have not opened the app still get lock-screen pings. Locally
-you can hit the same endpoint with `X-LockIn-Dispatch` (HMAC of `SECRET_KEY`).
+have it enabled. A daily GitHub Action (20:07 UTC, evening in London) calls an
+internal dispatch endpoint so people who have not opened the app still get
+lock-screen pings. Locally you can hit the same endpoint with
+`X-LockIn-Dispatch` (HMAC of `SECRET_KEY`).
 
 ## Local setup
 
@@ -354,7 +355,7 @@ CI (`.github/workflows/ci.yml`) runs on every push and pull request. On
 the image to Artifact Registry and updates Cloud Run. The Cloudflare Worker
 is deployed separately with Wrangler, not from Actions. **Deploy** is a
 manual-only fallback. **Notifications** (`.github/workflows/notifications.yml`)
-runs hourly: it mints a Google ID token for `lockin-github` (audience
+runs daily at 20:07 UTC (20:07 GMT / 21:07 BST): it mints a Google ID token for `lockin-github` (audience
 `https://lockin.talhaakhoon.dev`) and POSTs
 `/api/v1/internal/notifications/dispatch`. No extra secret.
 
@@ -461,7 +462,7 @@ starts. With a cash forfeit on the line, an untested backup does not count.
 - Admin actions require an admin membership and write an audit row that names
   the actor.
 - State-changing requests need a double-submit CSRF token.
-- The hourly notification dispatch is not a browser session: locally it
+- The daily notification dispatch is not a browser session: locally it
   accepts `X-LockIn-Dispatch` (HMAC of `SECRET_KEY`); in production it
   accepts a Google ID token from `lockin-github`. It is not CSRF-gated.
 - MCP access is a revocable personal token. ChatGPT obtains one through
