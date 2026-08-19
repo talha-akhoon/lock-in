@@ -144,6 +144,7 @@ function CategoryStep({
                 key={goal.id}
                 goal={goal}
                 editable
+                canAddChild
                 onEdit={setEditing}
                 onDelete={setDeleting}
                 onAddChild={(target) => {

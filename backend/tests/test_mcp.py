@@ -1,6 +1,7 @@
 """Personal access tokens, Bearer auth, and MCP tool privacy."""
 
 import json
+from datetime import timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -158,9 +159,30 @@ def test_add_goal_creates_a_goal_for_the_caller(team_setup, db) -> None:
     assert stored.challenge_participant_id == team_setup.admin_participant.id
 
 
-def test_add_goal_is_rejected_once_the_commitment_locks(team_setup, db) -> None:
+def test_add_goal_still_works_once_the_commitment_locks(team_setup, db) -> None:
     participant = team_setup.admin_participant
     participant.goals_locked_at = participant.goals_due_at
+    db.commit()
+
+    created = tools.add_goal(
+        db,
+        team_setup.admin,
+        payload=GoalCreate(
+            category="PHYSICAL",
+            title="A late but honest addition",
+            tracking_type="MILESTONE",
+        ),
+    )
+    # Added after the lock, so it joins the lock right away.
+    assert created["locked_at"] is not None
+
+
+def test_add_goal_is_rejected_after_the_challenge_ends(team_setup, db) -> None:
+    from app.services.clock import utcnow
+
+    participant = team_setup.admin_participant
+    participant.goals_locked_at = participant.goals_due_at
+    team_setup.challenge.end_at = utcnow() - timedelta(days=1)
     db.commit()
 
     with pytest.raises(HTTPException) as exc:

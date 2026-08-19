@@ -69,7 +69,11 @@ def test_display_only_fields_stay_editable_once_locked(
     assert response.json()[field] == value
 
 
-def test_goals_cannot_be_added_once_locked(team_setup, locked_goal) -> None:
+def test_goals_can_still_be_added_once_locked(team_setup, locked_goal) -> None:
+    """Adding only strengthens the commitment, so the lock does not block it.
+
+    The new goal joins the lock immediately — it can be added but not softened.
+    """
     response = team_setup.admin_client.post(
         "/api/v1/me/goals",
         json={
@@ -78,8 +82,42 @@ def test_goals_cannot_be_added_once_locked(team_setup, locked_goal) -> None:
             "tracking_type": "MILESTONE",
         },
     )
+    assert response.status_code == 201, response.text
+    assert response.json()["locked_at"] is not None
+
+
+def test_subgoals_can_be_added_to_a_locked_goal(team_setup, locked_goal) -> None:
+    response = team_setup.admin_client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PERSONAL",
+            "title": "A missing step",
+            "tracking_type": "MILESTONE",
+            "parent_goal_id": str(locked_goal.id),
+        },
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["parent_goal_id"] == str(locked_goal.id)
+
+
+def test_goals_cannot_be_added_after_the_challenge_ends(
+    team_setup, locked_goal, db
+) -> None:
+    from app.services.clock import utcnow
+
+    team_setup.challenge.end_at = utcnow() - timedelta(days=1)
+    db.commit()
+
+    response = team_setup.admin_client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PERSONAL",
+            "title": "Too late",
+            "tracking_type": "MILESTONE",
+        },
+    )
     assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "GOALS_LOCKED"
+    assert response.json()["detail"]["code"] == "CHALLENGE_OVER"
 
 
 def test_goals_cannot_be_deleted_once_locked(team_setup, locked_goal) -> None:

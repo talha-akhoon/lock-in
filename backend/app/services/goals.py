@@ -40,10 +40,19 @@ IMMUTABLE_GOAL_FIELDS = frozenset(
 )
 
 GOALS_LOCKED = {"code": "GOALS_LOCKED", "message": "Your commitment is locked"}
+CHALLENGE_OVER = {"code": "CHALLENGE_OVER", "message": "This challenge has ended"}
 
 
 def locked_conflict() -> HTTPException:
     return HTTPException(status.HTTP_409_CONFLICT, detail=GOALS_LOCKED)
+
+
+def challenge_over_conflict() -> HTTPException:
+    return HTTPException(status.HTTP_409_CONFLICT, detail=CHALLENGE_OVER)
+
+
+def challenge_has_ended(challenge: Challenge) -> bool:
+    return utcnow() >= as_utc(challenge.end_at)
 
 
 def goal_submission_deadline(challenge: Challenge, joined_at: datetime) -> datetime:
@@ -115,8 +124,12 @@ def require_goal(
 def create_goal(
     db: Session, participant: ChallengeParticipant, payload: GoalCreate
 ) -> Goal:
-    if sync_participant_lock(db, participant):
-        raise locked_conflict()
+    # Adding a goal or sub-goal only ever *strengthens* a commitment, so unlike
+    # editing or deleting it stays open after the lock. It closes only once the
+    # challenge itself is over, when new goals could disturb scored outcomes.
+    locked = sync_participant_lock(db, participant)
+    if challenge_has_ended(participant.challenge):
+        raise challenge_over_conflict()
     parent: Goal | None = None
     if payload.parent_goal_id:
         parent = db.get(Goal, payload.parent_goal_id)
@@ -134,6 +147,10 @@ def create_goal(
     if payload.tracking_type == TrackingType.NUMERIC and data["baseline_value"] is None:
         data["baseline_value"] = data["current_value"] or 0
     goal = Goal(challenge_participant_id=participant.id, **data)
+    if locked:
+        # Added after the commitment locked: it joins the lock right away, so it
+        # can be added but not later edited or removed.
+        goal.locked_at = participant.goals_locked_at
     db.add(goal)
     db.flush()
     return goal
