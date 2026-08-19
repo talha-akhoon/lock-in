@@ -196,3 +196,28 @@ def test_a_completion_notification_is_not_sent_for_a_private_goal(
 
     assert not any("completed a goal" in title for title in titles)
     assert SECRET not in bodies
+
+
+def test_a_checkin_notification_does_not_name_a_private_goal(
+    team_setup, private_goal
+) -> None:
+    from app.services.clock import challenge_today
+
+    today = challenge_today(team_setup.challenge).isoformat()
+    team_setup.member_client.post(
+        "/api/v1/me/checkins",
+        json={
+            "date": today,
+            "updates": [{"goal_id": str(private_goal.id), "completed": True}],
+        },
+    )
+
+    body = team_setup.admin_client.get("/api/v1/me/notifications").json()
+    checkins = [
+        row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"
+    ]
+    assert len(checkins) == 1
+    assert SECRET not in checkins[0]["title"]
+    assert SECRET not in (checkins[0]["body"] or "")
+    types = [row["type"] for row in body["notifications"]]
+    assert "MEMBER_COMPLETED_GOAL" not in types

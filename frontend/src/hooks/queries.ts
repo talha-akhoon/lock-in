@@ -29,6 +29,7 @@ import type {
   TeamMember,
   CheckinPayload,
   McpToken,
+  PushConfig,
 } from '../lib/types'
 
 export const keys = {
@@ -50,6 +51,7 @@ export const keys = {
   audit: ['audit'] as const,
   participants: ['participants'] as const,
   mcpTokens: ['mcp-tokens'] as const,
+  pushConfig: ['push-config'] as const,
 }
 
 export function useAuth(): UseQueryResult<AuthMe> {
@@ -373,6 +375,13 @@ export function useMcpTokens() {
   return useQuery({
     queryKey: keys.mcpTokens,
     queryFn: () => api<McpToken[]>('/me/mcp-tokens'),
+  })
+}
+
+export function usePushConfig() {
+  return useQuery({
+    queryKey: keys.pushConfig,
+    queryFn: () => api<PushConfig>('/me/push/config'),
   })
 }
 

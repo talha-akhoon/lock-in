@@ -35,7 +35,9 @@ the commitment, the daily record, and the reckoning at the end.
    it. If the challenge has not started yet, Check-In also lets you update
    that snapshot.
 7. **Check in.** Each day you update the goals that moved. Streaks and a
-   heatmap use the challenge's own timezone.
+   heatmap use the challenge's own timezone. Teammates see it in the activity
+   feed and get a notification — in the app, and as a phone/desktop push if
+   they installed LockIn and turned that on.
 8. **Optional: connect your own LLM.** ChatGPT custom connectors use OAuth:
    paste the `/mcp` URL, choose OAuth, sign in to LockIn and approve. Cursor
    and Claude take a personal token from Settings. The model can read your
@@ -75,6 +77,10 @@ the commitment, the daily record, and the reckoning at the end.
 - Per-member heatmap and streak on the profile.
 - Team dashboard with everyone's progress (private titles redacted).
 - Activity feed of recent updates.
+- **Install as an app** — add LockIn to the Home Screen or desktop. Settings
+  turns on push so a teammate checking in or finishing a goal reaches you when
+  the tab is closed. iPhone only delivers push after you add LockIn to the Home
+  Screen. Private goal titles are never included.
 
 ### MCP
 
@@ -110,8 +116,10 @@ A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
 
 ### Notifications
 
-In-app only (no email): goal-lock warnings, challenge milestones (100 / 30 / 7
-days), challenge complete, a teammate finishing a goal, and a member joining.
+In-app (no email): goal-lock warnings, challenge milestones (100 / 30 / 7
+days), challenge complete, a teammate checking in, a teammate finishing a goal,
+and a member joining. Check-ins and completed goals also go out as Web Push to
+devices that have it enabled in Settings.
 
 ## Local setup
 
@@ -130,7 +138,8 @@ Edit `.env`:
 
 - `GOOGLE_CLIENT_ID` — the OAuth **Web client** ID (public; also sent to the
   browser as `VITE_GOOGLE_CLIENT_ID`).
-- `SECRET_KEY` — any long random string locally. Rotating it signs everyone out.
+- `SECRET_KEY` — any long random string locally. Rotating it signs everyone out
+  and invalidates push subscriptions (VAPID keys are derived from it).
 - `CHALLENGE_TIMEZONE` — default zone for new challenges (`Europe/London` is
   fine). Check-in days and streaks use the *challenge's* zone, not the
   server's.
@@ -255,7 +264,7 @@ backend/app/
   api/v1/routes/          one module per resource; handlers stay thin
   api/v1/serializers.py   response shaping, including the privacy boundary
   services/               goals, check-ins, challenges, teams, notifications,
-                          audit, progress, clock, MCP tokens, OAuth
+                          audit, progress, clock, MCP tokens, OAuth, Web Push
   api/oauth.py            ChatGPT MCP connector OAuth (well-known, authorize, token)
   mcp/                    Streamable HTTP tools at /mcp; same privacy as the app
   models/domain.py        SQLAlchemy models
@@ -264,9 +273,10 @@ backend/app/
 frontend/src/
   pages/                  one file per screen, including /admin/*
   features/               goal forms, check-in payloads, help copy
-  components/             primitives, heatmap, countdown, notifications, InfoTip
+  components/             primitives, heatmap, countdown, notifications, InfoTip, PWA settings
   hooks/queries.ts        typed TanStack Query hooks
-  lib/                    API client, types, formatting, category metadata
+  lib/                    API client, types, formatting, category metadata, Web Push
+frontend/public/          web app manifest, service worker, icons
 ```
 
 **Privacy:** a teammate viewing a `PRIVATE` goal gets counts only. Every

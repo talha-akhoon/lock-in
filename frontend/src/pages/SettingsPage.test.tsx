@@ -17,10 +17,13 @@ function token(overrides: Partial<McpToken> = {}): McpToken {
   }
 }
 
+const PUSH_CONFIG = { enabled: true, public_key: 'Bxxxxxxxx' }
+
 describe('settings MCP tokens', () => {
   it('shows a new token once and only lists its prefix afterwards', async () => {
     const fetchMock = mockFetch({
       'GET /me/mcp-tokens': [],
+      'GET /me/push/config': PUSH_CONFIG,
       'POST /me/mcp-tokens': token({
         id: 'tok-2',
         prefix: 'lin_wxyz90',
@@ -44,6 +47,7 @@ describe('settings MCP tokens', () => {
     const issued = token({ token: 'lin_abcd12secret-value' })
     mockFetch({
       'GET /me/mcp-tokens': [token()],
+      'GET /me/push/config': PUSH_CONFIG,
       'POST /me/mcp-tokens': issued,
       'DELETE /me/mcp-tokens/tok-1': undefined,
     })
@@ -57,5 +61,17 @@ describe('settings MCP tokens', () => {
     await user.click(screen.getByRole('button', { name: 'Revoke' }))
 
     expect(screen.queryByText('lin_abcd12secret-value')).not.toBeInTheDocument()
+  })
+
+  it('explains how to install the app and enable push', async () => {
+    mockFetch({
+      'GET /me/mcp-tokens': [],
+      'GET /me/push/config': PUSH_CONFIG,
+    })
+    renderWithAuth(<SettingsPage />, makeAuth())
+
+    expect(await screen.findByRole('heading', { name: /on this device/i })).toBeInTheDocument()
+    expect(screen.getByText(/teammate checking in or finishing a goal/i)).toBeInTheDocument()
+    expect(screen.getByText(/not available in this browser/i)).toBeInTheDocument()
   })
 })

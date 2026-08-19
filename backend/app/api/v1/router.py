@@ -11,6 +11,7 @@ from app.api.v1.routes import (
     invitations,
     mcp_tokens,
     notifications,
+    push,
     teams,
 )
 
@@ -32,5 +33,6 @@ for module in (
     notifications,
     admin,
     mcp_tokens,
+    push,
 ):
     router.include_router(module.router)

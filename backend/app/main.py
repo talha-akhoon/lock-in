@@ -46,6 +46,26 @@ assets = dist / "assets"
 if assets.exists():
     app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
+# Files copied from frontend/public (manifest, service worker, icons). Guessing
+# from the suffix is enough for PNG/SVG; the PWA bits need explicit types.
+_DIST_MEDIA = {
+    ".webmanifest": "application/manifest+json",
+    ".json": "application/json",
+    ".js": "text/javascript; charset=utf-8",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+}
+
+
+def _dist_file(path: str) -> Path | None:
+    if not path or path.endswith("/"):
+        return None
+    candidate = (dist / path).resolve()
+    if not candidate.is_file() or not candidate.is_relative_to(dist):
+        return None
+    return candidate
+
 
 @app.get("/healthz", include_in_schema=False)
 def healthz() -> dict[str, str]:
@@ -59,11 +79,20 @@ def spa(path: str) -> FileResponse:
 
     Anything under the API prefix must 404 as an API rather than fall through to
     the app shell: a caller asking for a route that does not exist should be told
-    so, not handed a page of HTML with a 200 on it.
+    so, not handed a page of HTML with a 200 on it. Built files (the service
+    worker, manifest, icons) are served as themselves so the PWA can install.
     """
     reserved = {"api", "mcp", "oauth", ".well-known"} | SCHEMA_PATHS
     if path.startswith(("api/", "mcp/", "oauth/", ".well-known/")) or path in reserved:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    built = _dist_file(path)
+    if built is not None:
+        headers = {}
+        if built.name == "sw.js":
+            headers["Cache-Control"] = "no-cache"
+            headers["Service-Worker-Allowed"] = "/"
+        media = _DIST_MEDIA.get(built.suffix.lower())
+        return FileResponse(built, media_type=media, headers=headers)
     index = dist / "index.html"
     if not index.exists():
         return FileResponse(Path(__file__).parent / "placeholder.html")

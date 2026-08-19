@@ -179,6 +179,7 @@ export type NotificationType =
   | 'CHALLENGE_MILESTONE'
   | 'CHALLENGE_COMPLETE'
   | 'MEMBER_COMPLETED_GOAL'
+  | 'MEMBER_CHECKED_IN'
   | 'MEMBER_JOINED'
 
 export type Notification = {
@@ -194,6 +195,11 @@ export type Notification = {
 export type NotificationFeed = {
   unread_count: number
   notifications: Notification[]
+}
+
+export type PushConfig = {
+  enabled: boolean
+  public_key: string
 }
 
 export type Invitation = {

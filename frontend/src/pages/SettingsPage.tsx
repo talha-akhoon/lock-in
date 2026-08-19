@@ -2,6 +2,7 @@ import { Check, Copy, LogOut, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ConfirmDialog } from '../components/Modal'
+import { PwaSettings } from '../components/PwaSettings'
 import { Avatar, Empty, Loading, PageHeader, Pill } from '../components/primitives'
 import {
   useCreateMcpToken,
@@ -88,6 +89,8 @@ export function SettingsPage() {
           )
         )}
       </section>
+
+      <PwaSettings />
 
       <section className="card admin-section warn">
         <h2>Connect your LLM</h2>

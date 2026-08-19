@@ -1,10 +1,17 @@
-"""All seven notification types, and the dedupe that makes lazy generation safe."""
+"""All eight notification types, and the dedupe that makes lazy generation safe."""
 
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from app.models.domain import Challenge, ChallengeParticipant, Notification
+
+
+@pytest.fixture
+def today(team_setup) -> str:
+    from app.services.clock import challenge_today
+
+    return challenge_today(team_setup.challenge).isoformat()
 
 
 def types_for(client) -> list[str]:
@@ -128,6 +135,88 @@ def test_the_owner_is_not_notified_about_their_own_completion(
     )
 
     assert "MEMBER_COMPLETED_GOAL" not in types_for(team_setup.member_client)
+
+
+def test_a_teammate_checking_in_is_announced(team_setup, make_goal, today) -> None:
+    goal = make_goal(team_setup.member_participant)
+    team_setup.member_client.post(
+        "/api/v1/me/checkins",
+        json={
+            "date": today,
+            "note": "Solid day",
+            "updates": [{"goal_id": str(goal.id), "numeric_value": "100"}],
+        },
+    )
+
+    body = team_setup.admin_client.get("/api/v1/me/notifications").json()
+    checkins = [
+        row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"
+    ]
+
+    assert len(checkins) == 1
+    assert checkins[0]["title"] == "Teammate checked in"
+    assert checkins[0]["body"] == "Logged progress on 1 goal"
+
+
+def test_the_owner_is_not_notified_about_their_own_checkin(
+    team_setup, make_goal, today
+) -> None:
+    goal = make_goal(team_setup.member_participant)
+    team_setup.member_client.post(
+        "/api/v1/me/checkins",
+        json={
+            "date": today,
+            "updates": [{"goal_id": str(goal.id), "numeric_value": "100"}],
+        },
+    )
+
+    assert "MEMBER_CHECKED_IN" not in types_for(team_setup.member_client)
+
+
+def test_resubmitting_the_same_day_does_not_duplicate_a_checkin_notification(
+    team_setup, make_goal, today
+) -> None:
+    goal = make_goal(team_setup.member_participant)
+    for value in ("100", "105"):
+        team_setup.member_client.post(
+            "/api/v1/me/checkins",
+            json={
+                "date": today,
+                "updates": [{"goal_id": str(goal.id), "numeric_value": value}],
+            },
+        )
+
+    body = team_setup.admin_client.get("/api/v1/me/notifications").json()
+    checkins = [
+        row for row in body["notifications"] if row["type"] == "MEMBER_CHECKED_IN"
+    ]
+    assert len(checkins) == 1
+
+
+def test_a_starting_point_snapshot_does_not_announce_a_checkin(
+    team_setup, make_goal, db
+) -> None:
+    """Before kick-off the form records a baseline, not a daily log."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.domain import ChallengeStatus
+
+    team_setup.challenge.start_at = datetime.now(UTC) + timedelta(days=3)
+    team_setup.challenge.status = ChallengeStatus.UPCOMING
+    db.commit()
+
+    goal = make_goal(team_setup.member_participant, current_value=90)
+    today = team_setup.member_client.get("/api/v1/me/checkins").json()["today"]
+    response = team_setup.member_client.post(
+        "/api/v1/me/checkins",
+        json={
+            "date": today,
+            "updates": [{"goal_id": str(goal.id), "numeric_value": "92"}],
+        },
+    )
+    assert response.status_code == 200
+
+    assert "MEMBER_CHECKED_IN" not in types_for(team_setup.admin_client)
 
 
 def test_repeated_reads_do_not_duplicate_notifications(

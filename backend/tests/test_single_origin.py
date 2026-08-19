@@ -76,5 +76,38 @@ def test_the_spa_is_still_served_in_production(production_client) -> None:
     assert production_client.get("/dashboard").status_code == 200
 
 
+def test_built_public_files_are_served_as_themselves(tmp_path, monkeypatch) -> None:
+    """The service worker and manifest must not fall through to index.html."""
+    import importlib
+
+    from app import config, main
+
+    (tmp_path / "sw.js").write_text("// lockin-sw\nself.skipWaiting()\n")
+    (tmp_path / "manifest.json").write_text('{"short_name":"LockIn"}')
+    (tmp_path / "index.html").write_text('<div id="root"></div>')
+    monkeypatch.setenv("FRONTEND_DIST", str(tmp_path))
+    config.get_settings.cache_clear()
+    reloaded = importlib.reload(main)
+    try:
+        with TestClient(reloaded.app) as client:
+            worker = client.get("/sw.js")
+            assert worker.status_code == 200
+            assert "lockin-sw" in worker.text
+            assert "text/html" not in worker.headers["content-type"]
+            assert worker.headers.get("service-worker-allowed") == "/"
+
+            manifest = client.get("/manifest.json")
+            assert manifest.status_code == 200
+            assert manifest.json()["short_name"] == "LockIn"
+
+            shell = client.get("/dashboard")
+            assert shell.status_code == 200
+            assert 'id="root"' in shell.text or "id='root'" in shell.text
+    finally:
+        monkeypatch.delenv("FRONTEND_DIST", raising=False)
+        config.get_settings.cache_clear()
+        importlib.reload(main)
+
+
 def test_the_schema_is_reachable_outside_production(anon) -> None:
     assert anon.get("/openapi.json").status_code == 200

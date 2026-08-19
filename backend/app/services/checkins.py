@@ -15,6 +15,7 @@ from app.models.domain import (
     TrackingType,
 )
 from app.schemas.domain import CheckinCreate, ProgressCreate
+from app.services import notifications
 from app.services.clock import challenge_today, is_before_start, local_date
 from app.services.goals import add_progress, require_goal
 from app.services.progress import checkin_streak
@@ -120,6 +121,14 @@ def save_checkin(
                 # starting amount already counts as progress.
                 goal.baseline_value = goal.current_value
         db.flush()
+    if team_id and not pre_start and (payload.updates or (payload.note or "").strip()):
+        notifications.member_checked_in(
+            db,
+            participant=participant,
+            team_id=team_id,
+            day=payload.date,
+            updates=len(payload.updates),
+        )
     return checkin
 
 

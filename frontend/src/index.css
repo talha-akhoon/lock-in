@@ -447,6 +447,7 @@ textarea { min-height: 85px; resize: vertical; }
   white-space: pre;
 }
 .mcp-token-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) 44px; align-items: center; gap: 14px; }
+.admin-section .admin-row span { color: var(--muted); font-size: 13px; }
 .code-input { text-align: center; font-size: 22px; letter-spacing: .16em; text-transform: uppercase; }
 .heatmap-grid { overflow-x: auto; }
 /* Faint but legible: the days still to come are the point of a six-month graph. */

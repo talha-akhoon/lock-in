@@ -7,7 +7,7 @@ notification.
 """
 
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,6 +29,12 @@ from app.services.clock import (
 )
 
 MILESTONE_DAYS = (100, 30, 7)
+_PUSH_KINDS = frozenset(
+    {
+        NotificationType.MEMBER_COMPLETED_GOAL,
+        NotificationType.MEMBER_CHECKED_IN,
+    }
+)
 
 
 def notify(
@@ -61,6 +67,11 @@ def notify(
         link_path=link_path,
     )
     db.add(row)
+    db.flush()
+    if kind in _PUSH_KINDS:
+        from app.services import push
+
+        push.deliver(db, row)
     return row
 
 
@@ -189,6 +200,34 @@ def member_completed_goal(
         dedupe_key=f"goal-complete:{goal.id}",
         title=f"{participant.user.display_name} completed a goal",
         body=goal.title,
+        link_path=f"/team/members/{participant.user_id}",
+        exclude_user_id=participant.user_id,
+    )
+
+
+def member_checked_in(
+    db: Session,
+    *,
+    participant: ChallengeParticipant,
+    team_id: uuid.UUID,
+    day: date,
+    updates: int,
+) -> None:
+    """Tell the team someone logged a day, without leaking what they logged."""
+    name = participant.user.display_name
+    if updates:
+        noun = "goal" if updates == 1 else "goals"
+        body = f"Logged progress on {updates} {noun}"
+    else:
+        body = "Left a check-in note"
+    notify_team(
+        db,
+        team_id=team_id,
+        challenge_id=participant.challenge_id,
+        kind=NotificationType.MEMBER_CHECKED_IN,
+        dedupe_key=f"checkin:{participant.id}:{day.isoformat()}",
+        title=f"{name} checked in",
+        body=body,
         link_path=f"/team/members/{participant.user_id}",
         exclude_user_id=participant.user_id,
     )
