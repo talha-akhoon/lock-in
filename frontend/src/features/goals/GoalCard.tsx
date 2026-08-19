@@ -2,6 +2,7 @@ import { Check, ChevronRight, LockKeyhole, Pencil, Plus, Trash2 } from 'lucide-r
 import { Link } from 'react-router-dom'
 import { InfoTip } from '../../components/InfoTip'
 import { Pill, Progress } from '../../components/primitives'
+import { GoalSteps } from './GoalSteps'
 import { StepHelp } from './StepHelp'
 import { goalValueLabel } from '../../lib/format'
 import { TRACKING_LABELS } from '../../lib/categories'
@@ -52,24 +53,9 @@ export function GoalCard({
         )}
       </div>
 
-      {goal.children.map((child) => (
-        <div className="subgoal" key={child.id}>
-          <span>
-            {child.visibility === 'PRIVATE' && <LockKeyhole />} {child.title}
-          </span>
-          <Progress value={child.progress_percentage} tone="muted" />
-          <b>{Math.round(child.progress_percentage)}%</b>
-          {editable && onDelete && (
-            <button
-              className="icon-button tiny"
-              onClick={() => onDelete(child)}
-              aria-label={`Delete ${child.title}`}
-            >
-              <Trash2 />
-            </button>
-          )}
-        </div>
-      ))}
+      {goal.children.length > 0 && (
+        <GoalSteps parent={goal} canDelete={Boolean(editable && onDelete)} onDelete={onDelete} />
+      )}
 
       <footer className="goal-actions">
         <Link to={`/goals/${goal.id}`} className="ghost small">

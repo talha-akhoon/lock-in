@@ -122,6 +122,69 @@ def test_nesting_deeper_than_one_level_is_rejected(team_setup) -> None:
     assert grandchild.status_code == 422
 
 
+def test_new_steps_append_and_can_be_reordered(team_setup) -> None:
+    parent = team_setup.admin_client.post("/api/v1/me/goals", json=MILESTONE).json()
+    first = team_setup.admin_client.post(
+        "/api/v1/me/goals", json={**NUMERIC, "parent_goal_id": parent["id"]}
+    ).json()
+    second = team_setup.admin_client.post(
+        "/api/v1/me/goals", json={**MANUAL, "parent_goal_id": parent["id"]}
+    ).json()
+
+    assert first["sort_order"] == 0
+    assert second["sort_order"] == 1
+
+    reversed_ids = [second["id"], first["id"]]
+    response = team_setup.admin_client.patch(
+        f"/api/v1/goals/{parent['id']}/children/order",
+        json={"ordered_ids": reversed_ids},
+    )
+    assert response.status_code == 200, response.text
+    assert [child["title"] for child in response.json()["children"]] == [
+        second["title"],
+        first["title"],
+    ]
+
+    third = team_setup.admin_client.post(
+        "/api/v1/me/goals", json={**COUNT, "parent_goal_id": parent["id"]}
+    ).json()
+    tree = team_setup.admin_client.get("/api/v1/me/goals").json()["goals"]
+    assert [child["title"] for child in tree[0]["children"]] == [
+        second["title"],
+        first["title"],
+        third["title"],
+    ]
+
+
+def test_reordering_steps_rejects_a_partial_list(team_setup) -> None:
+    parent = team_setup.admin_client.post("/api/v1/me/goals", json=MILESTONE).json()
+    first = team_setup.admin_client.post(
+        "/api/v1/me/goals", json={**NUMERIC, "parent_goal_id": parent["id"]}
+    ).json()
+    team_setup.admin_client.post(
+        "/api/v1/me/goals", json={**MANUAL, "parent_goal_id": parent["id"]}
+    )
+
+    response = team_setup.admin_client.patch(
+        f"/api/v1/goals/{parent['id']}/children/order",
+        json={"ordered_ids": [first["id"]]},
+    )
+    assert response.status_code == 422
+
+
+def test_a_step_cannot_be_reordered_as_if_it_were_a_parent(team_setup) -> None:
+    parent = team_setup.admin_client.post("/api/v1/me/goals", json=MILESTONE).json()
+    child = team_setup.admin_client.post(
+        "/api/v1/me/goals", json={**NUMERIC, "parent_goal_id": parent["id"]}
+    ).json()
+
+    response = team_setup.admin_client.patch(
+        f"/api/v1/goals/{child['id']}/children/order",
+        json={"ordered_ids": [child["id"]]},
+    )
+    assert response.status_code == 422
+
+
 def test_a_parent_goal_from_another_member_is_not_found(team_setup, make_goal) -> None:
     theirs = make_goal(team_setup.member_participant)
 

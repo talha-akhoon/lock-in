@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.domain import (
@@ -171,6 +171,15 @@ def create_goal(
         # Children render nested under their parent, so a category of their own
         # would put them in a section they are never drawn in.
         data["category"] = parent.category
+        if "sort_order" not in payload.model_fields_set:
+            # Append after any existing steps so a reordered list stays stable
+            # when a new step is added.
+            next_order = db.scalar(
+                select(func.max(Goal.sort_order)).where(
+                    Goal.parent_goal_id == parent.id
+                )
+            )
+            data["sort_order"] = (next_order if next_order is not None else -1) + 1
     if payload.tracking_type == TrackingType.NUMERIC and data["baseline_value"] is None:
         data["baseline_value"] = data["current_value"] or 0
     goal = Goal(challenge_participant_id=participant.id, **data)
@@ -204,6 +213,41 @@ def update_goal(
         setattr(goal, key, value)
     db.flush()
     return goal
+
+
+def reorder_children(
+    db: Session,
+    parent: Goal,
+    ordered_ids: list[uuid.UUID],
+) -> Goal:
+    """Rewrite the display order of a parent's steps.
+
+    `sort_order` is a display preference, so this stays allowed after the lock.
+    The list must be a permutation of the current children — no adding, dropping
+    or promoting a sibling from another goal.
+    """
+    if parent.parent_goal_id is not None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Only a top-level goal has steps to reorder",
+        )
+    children = list(parent.children)
+    child_ids = {child.id for child in children}
+    if not child_ids:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "This goal has no steps to reorder",
+        )
+    if len(ordered_ids) != len(child_ids) or set(ordered_ids) != child_ids:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "ordered_ids must list every step of this goal exactly once",
+        )
+    order = {goal_id: index for index, goal_id in enumerate(ordered_ids)}
+    for child in children:
+        child.sort_order = order[child.id]
+    db.flush()
+    return parent
 
 
 def delete_goal(db: Session, participant: ChallengeParticipant, goal: Goal) -> None:

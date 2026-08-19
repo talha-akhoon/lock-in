@@ -63,6 +63,13 @@ def test_another_members_goal_is_not_found(team_setup, rival, make_goal) -> None
         ).status_code
         == 404
     )
+    assert (
+        team_setup.admin_client.patch(
+            f"/api/v1/goals/{goal.id}/children/order",
+            json={"ordered_ids": [str(goal.id)]},
+        ).status_code
+        == 404
+    )
     assert team_setup.admin_client.delete(f"/api/v1/goals/{goal.id}").status_code == 404
 
 
@@ -76,6 +83,13 @@ def test_a_teammates_goal_in_the_same_challenge_is_not_editable(
         f"/api/v1/goals/{goal.id}", json={"sort_order": 9}
     )
     assert response.status_code == 404
+    assert (
+        team_setup.admin_client.patch(
+            f"/api/v1/goals/{goal.id}/children/order",
+            json={"ordered_ids": [str(goal.id)]},
+        ).status_code
+        == 404
+    )
 
 
 def test_admin_routes_are_closed_to_members(team_setup, rival) -> None:

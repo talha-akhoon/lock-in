@@ -100,6 +100,38 @@ def test_subgoals_can_be_added_to_a_locked_goal(team_setup, locked_goal) -> None
     assert response.json()["parent_goal_id"] == str(locked_goal.id)
 
 
+def test_steps_can_be_reordered_once_locked(team_setup, locked_goal) -> None:
+    client = team_setup.admin_client
+    first = client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PHYSICAL",
+            "title": "Step one",
+            "tracking_type": "MILESTONE",
+            "parent_goal_id": str(locked_goal.id),
+        },
+    ).json()
+    second = client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PHYSICAL",
+            "title": "Step two",
+            "tracking_type": "MILESTONE",
+            "parent_goal_id": str(locked_goal.id),
+        },
+    ).json()
+
+    response = client.patch(
+        f"/api/v1/goals/{locked_goal.id}/children/order",
+        json={"ordered_ids": [second["id"], first["id"]]},
+    )
+    assert response.status_code == 200, response.text
+    assert [child["title"] for child in response.json()["children"]] == [
+        "Step two",
+        "Step one",
+    ]
+
+
 def test_a_first_step_is_refused_on_a_progressed_locked_goal(
     team_setup, make_goal, db
 ) -> None:

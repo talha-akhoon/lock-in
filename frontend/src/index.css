@@ -46,6 +46,7 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .primary svg, .danger svg { width: 18px; }
 .icon-button, .close-menu { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); color: var(--muted); background: var(--panel); border-radius: 10px; }
 .icon-button svg, .close-menu svg { width: 18px; }
+.icon-button:disabled { opacity: 0.35; cursor: not-allowed; }
 .error { color: #ff8d86 !important; }
 .success { padding: 14px 16px; background: var(--acid-dark); color: var(--acid); border-radius: 10px; }
 
@@ -145,9 +146,10 @@ h1, h2, h3 { letter-spacing: -.035em; }
 /* Every label here is already written the way it should read — tracking names,
    member-written units, counts — so nothing is re-cased. */
 .goal-meta span { padding: 5px 8px; background: #232823; border-radius: 6px; color: var(--muted); font-size: 10px; }
-.subgoal { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr 40px; align-items: center; gap: 14px; padding: 13px 8px 0 20px; color: var(--muted); font-size: 12px; }
+.subgoal { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr 40px auto; align-items: center; gap: 14px; padding: 13px 8px 0 20px; color: var(--muted); font-size: 12px; }
 .subgoal .progress { height: 4px; }
 .subgoal b { color: var(--ink); }
+.subgoal-actions { display: flex; gap: 4px; justify-self: end; }
 .commit-panel { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 28px; border: 1px solid #43302d; border-radius: 16px; background: #1d1716; margin-top: 12px; }
 .commit-panel h3 { margin: 0 0 4px; }
 .commit-panel p { margin: 0; color: var(--muted); font-size: 13px; }
@@ -596,8 +598,9 @@ textarea { min-height: 85px; resize: vertical; }
   .section-title > b { font-size: 22px; }
   .profile-score > b { font-size: 40px; }
   .checkin-parent-head { grid-template-columns: 1fr; gap: 8px; }
-  .subgoal { grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px 12px; }
+  .subgoal { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; }
   .subgoal .progress { grid-column: 1 / -1; }
+  .subgoal-actions { grid-column: 1 / -1; }
   .admin-row, .invite-row, .mcp-token-row { grid-template-columns: 1fr; gap: 10px; }
   .invite-code { flex-direction: column; align-items: stretch; }
   .modal-backdrop { align-items: end; padding: var(--safe-top) 12px 0; }

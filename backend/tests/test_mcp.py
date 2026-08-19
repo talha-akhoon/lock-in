@@ -304,6 +304,49 @@ def test_update_goal_cannot_touch_a_teammates_goal(team_setup, make_goal, db) ->
     assert exc.value.status_code == 404
 
 
+def test_reorder_goal_steps_rewrites_child_order(team_setup, db) -> None:
+    parent = tools.add_goal(
+        db,
+        team_setup.admin,
+        payload=GoalCreate(
+            category="CAREER",
+            title="Ship the app",
+            tracking_type="MILESTONE",
+        ),
+    )
+    first = tools.add_goal(
+        db,
+        team_setup.admin,
+        payload=GoalCreate(
+            category="CAREER",
+            title="Finish the API",
+            tracking_type="MILESTONE",
+            parent_goal_id=parent["id"],
+        ),
+    )
+    second = tools.add_goal(
+        db,
+        team_setup.admin,
+        payload=GoalCreate(
+            category="CAREER",
+            title="Finish the UI",
+            tracking_type="MILESTONE",
+            parent_goal_id=parent["id"],
+        ),
+    )
+
+    updated = tools.reorder_goal_steps(
+        db,
+        team_setup.admin,
+        goal_id=parent["id"],
+        ordered_ids=[second["id"], first["id"]],
+    )
+    assert [child["title"] for child in updated["children"]] == [
+        "Finish the UI",
+        "Finish the API",
+    ]
+
+
 def test_mcp_tools_never_leak_a_teammates_private_goal(
     team_setup, make_goal, db
 ) -> None:

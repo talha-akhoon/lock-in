@@ -71,7 +71,7 @@ export function GoalsPage() {
             <span>
               {challengeOver
                 ? 'This challenge has ended.'
-                : 'You can still add goals and steps, but existing ones can no longer be changed or removed.'}
+                : 'You can still add goals and steps, and reorder steps, but existing ones can no longer be changed or removed.'}
             </span>
           </div>
         </div>

@@ -7,6 +7,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { applyCheckinUpdates } from '../features/checkin/payload'
+import { orderedChildren } from '../features/goals/stepOrder'
 import { api, del, patch, post, put } from '../lib/api'
 import type {
   ActivityEntry,
@@ -248,6 +249,50 @@ export function useDeleteGoal() {
   return useMutation({
     mutationFn: (goalId: string) => del(`/goals/${goalId}`),
     onSuccess: invalidate,
+  })
+}
+
+export function useReorderGoalSteps() {
+  const invalidate = useGoalInvalidation()
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ parentId, orderedIds }: { parentId: string; orderedIds: string[] }) =>
+      patch<Goal>(`/goals/${parentId}/children/order`, { ordered_ids: orderedIds }),
+    onMutate: async ({ parentId, orderedIds }) => {
+      await Promise.all([
+        client.cancelQueries({ queryKey: keys.goals }),
+        client.cancelQueries({ queryKey: keys.goalHistory(parentId) }),
+      ])
+      const previousGoals = client.getQueryData<MyGoals>(keys.goals)
+      const previousHistory = client.getQueryData<GoalHistory>(keys.goalHistory(parentId))
+      if (previousGoals) {
+        client.setQueryData<MyGoals>(keys.goals, {
+          ...previousGoals,
+          goals: previousGoals.goals.map((goal) =>
+            goal.id === parentId ? orderedChildren(goal, orderedIds) : goal,
+          ),
+        })
+      }
+      if (previousHistory) {
+        client.setQueryData<GoalHistory>(keys.goalHistory(parentId), {
+          ...previousHistory,
+          goal: orderedChildren(previousHistory.goal, orderedIds),
+        })
+      }
+      return { previousGoals, previousHistory, parentId }
+    },
+    onError: (_error, _variables, context) => {
+      if (!context) return
+      if (context.previousGoals) client.setQueryData(keys.goals, context.previousGoals)
+      if (context.previousHistory) {
+        client.setQueryData(keys.goalHistory(context.parentId), context.previousHistory)
+      }
+    },
+    onSettled: (_data, _error, variables) => {
+      invalidate()
+      client.invalidateQueries({ queryKey: keys.goalHistory(variables.parentId) })
+      client.invalidateQueries({ queryKey: keys.goal(variables.parentId) })
+    },
   })
 }
 
