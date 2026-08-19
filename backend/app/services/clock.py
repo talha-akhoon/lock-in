@@ -24,8 +24,14 @@ def challenge_zone(challenge: Challenge) -> ZoneInfo:
     return ZoneInfo(challenge.timezone)
 
 
-def challenge_today(challenge: Challenge) -> date:
-    return datetime.now(challenge_zone(challenge)).date()
+def challenge_today(challenge: Challenge, moment: datetime | None = None) -> date:
+    if moment is None:
+        return datetime.now(challenge_zone(challenge)).date()
+    return local_date(challenge, moment)
+
+
+def local_now(challenge: Challenge, moment: datetime | None = None) -> datetime:
+    return as_utc(moment or utcnow()).astimezone(challenge_zone(challenge))
 
 
 def is_before_start(challenge: Challenge, day: date | None = None) -> bool:

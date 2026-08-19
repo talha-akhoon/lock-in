@@ -93,6 +93,10 @@ class NotificationType(str, enum.Enum):
     MEMBER_COMPLETED_GOAL = "MEMBER_COMPLETED_GOAL"
     MEMBER_CHECKED_IN = "MEMBER_CHECKED_IN"
     MEMBER_JOINED = "MEMBER_JOINED"
+    CHECKIN_DUE = "CHECKIN_DUE"
+    STREAK_AT_RISK = "STREAK_AT_RISK"
+    MEMBER_QUIET = "MEMBER_QUIET"
+    PACE_BEHIND = "PACE_BEHIND"
 
 
 class TimestampMixin:
@@ -109,6 +113,9 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(255))
     avatar_url: Mapped[str | None] = mapped_column(String(2048))
+    muted_notification_types: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, server_default=text("'[]'::json")
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

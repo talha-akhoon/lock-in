@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { makeAuth } from '../test/factories'
 import { mockFetch, renderWithAuth } from '../test/harness'
-import type { McpToken } from '../lib/types'
+import type { McpToken, NotificationPreferences } from '../lib/types'
 import { SettingsPage } from './SettingsPage'
 
 function token(overrides: Partial<McpToken> = {}): McpToken {
@@ -19,11 +19,30 @@ function token(overrides: Partial<McpToken> = {}): McpToken {
 
 const PUSH_CONFIG = { enabled: true, public_key: 'Bxxxxxxxx' }
 
+const PREFS: NotificationPreferences = {
+  muted_types: [],
+  types: [
+    {
+      type: 'MEMBER_CHECKED_IN',
+      group: 'Team',
+      label: 'Teammate logged progress',
+      description: 'Every save.',
+    },
+    {
+      type: 'CHECKIN_DUE',
+      group: 'You',
+      label: 'You have not checked in today',
+      description: 'Evening ping.',
+    },
+  ],
+}
+
 describe('settings MCP tokens', () => {
   it('shows a new token once and only lists its prefix afterwards', async () => {
     const fetchMock = mockFetch({
       'GET /me/mcp-tokens': [],
       'GET /me/push/config': PUSH_CONFIG,
+      'GET /me/notification-preferences': PREFS,
       'POST /me/mcp-tokens': token({
         id: 'tok-2',
         prefix: 'lin_wxyz90',
@@ -48,6 +67,7 @@ describe('settings MCP tokens', () => {
     mockFetch({
       'GET /me/mcp-tokens': [token()],
       'GET /me/push/config': PUSH_CONFIG,
+      'GET /me/notification-preferences': PREFS,
       'POST /me/mcp-tokens': issued,
       'DELETE /me/mcp-tokens/tok-1': undefined,
     })
@@ -67,11 +87,15 @@ describe('settings MCP tokens', () => {
     mockFetch({
       'GET /me/mcp-tokens': [],
       'GET /me/push/config': PUSH_CONFIG,
+      'GET /me/notification-preferences': PREFS,
     })
     renderWithAuth(<SettingsPage />, makeAuth())
 
     expect(await screen.findByRole('heading', { name: /on this device/i })).toBeInTheDocument()
-    expect(screen.getByText(/teammate logs progress or finishes a goal/i)).toBeInTheDocument()
+    expect(screen.getByText(/missed check-ins, streaks, pace/i)).toBeInTheDocument()
     expect(screen.getByText(/not available in this browser/i)).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: /notification types/i }),
+    ).toBeInTheDocument()
   })
 })

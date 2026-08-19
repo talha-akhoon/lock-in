@@ -1,0 +1,31 @@
+# Hourly pressure nudges. People who have not opened the app still get
+# lock-screen pings (if they enabled push) and in-app bell rows.
+name: Notifications
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/auth@v2
+        id: auth
+        with:
+          workload_identity_provider: projects/979991728317/locations/global/workloadIdentityPools/github/providers/github
+          service_account: lockin-github@lockin-505614.iam.gserviceaccount.com
+          token_format: id_token
+          id_token_audience: https://lockin.talhaakhoon.dev
+          id_token_include_email: true
+
+      - name: Dispatch notification nudges
+        run: |
+          curl -fsS --max-time 120 -X POST \
+            "https://lockin.talhaakhoon.dev/api/v1/internal/notifications/dispatch" \
+            -H "Authorization: Bearer ${{ steps.auth.outputs.id_token }}"

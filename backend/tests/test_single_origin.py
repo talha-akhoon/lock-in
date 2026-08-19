@@ -93,8 +93,12 @@ def test_built_public_files_are_served_as_themselves(tmp_path, monkeypatch) -> N
             worker = client.get("/sw.js")
             assert worker.status_code == 200
             assert "lockin-sw" in worker.text
-            assert "text/html" not in worker.headers["content-type"]
+            assert "javascript" in worker.headers["content-type"]
             assert worker.headers.get("service-worker-allowed") == "/"
+
+            head = client.head("/sw.js")
+            assert head.status_code == 200
+            assert "javascript" in head.headers["content-type"]
 
             manifest = client.get("/manifest.json")
             assert manifest.status_code == 200

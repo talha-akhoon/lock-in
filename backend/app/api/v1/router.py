@@ -8,6 +8,7 @@ from app.api.v1.routes import (
     challenges,
     checkins,
     goals,
+    internal,
     invitations,
     mcp_tokens,
     notifications,
@@ -34,5 +35,6 @@ for module in (
     admin,
     mcp_tokens,
     push,
+    internal,
 ):
     router.include_router(module.router)

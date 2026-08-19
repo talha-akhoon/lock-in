@@ -83,24 +83,28 @@ def goal_submission_deadline(challenge: Challenge, joined_at: datetime) -> datet
     return local_midnight(challenge, due_day)
 
 
-def participant_is_locked(participant: ChallengeParticipant) -> bool:
+def participant_is_locked(
+    participant: ChallengeParticipant, now: datetime | None = None
+) -> bool:
     if participant.goals_locked_at is not None:
         return True
-    now = utcnow()
+    moment = as_utc(now or utcnow())
     # A challenge that has ended is final even if the member's own submission
     # window never closed — an admin override late in the run can outlive it.
-    if now >= as_utc(participant.challenge.end_at):
+    if moment >= as_utc(participant.challenge.end_at):
         return True
-    return now >= as_utc(participant.goals_due_at)
+    return moment >= as_utc(participant.goals_due_at)
 
 
-def sync_participant_lock(db: Session, participant: ChallengeParticipant) -> bool:
+def sync_participant_lock(
+    db: Session, participant: ChallengeParticipant, now: datetime | None = None
+) -> bool:
     """Persist the lock once the deadline passes.
 
     Without this the lock is only ever derived, so `goals_locked_at` stays null
     forever and there is no record of *when* the commitment became final.
     """
-    locked = participant_is_locked(participant)
+    locked = participant_is_locked(participant, now)
     if locked and participant.goals_locked_at is None:
         participant.goals_locked_at = min(
             as_utc(participant.goals_due_at), as_utc(participant.challenge.end_at)

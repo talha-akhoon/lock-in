@@ -181,6 +181,22 @@ export type NotificationType =
   | 'MEMBER_COMPLETED_GOAL'
   | 'MEMBER_CHECKED_IN'
   | 'MEMBER_JOINED'
+  | 'CHECKIN_DUE'
+  | 'STREAK_AT_RISK'
+  | 'MEMBER_QUIET'
+  | 'PACE_BEHIND'
+
+export type NotificationPreferenceType = {
+  type: NotificationType
+  group: string
+  label: string
+  description: string
+}
+
+export type NotificationPreferences = {
+  muted_types: NotificationType[]
+  types: NotificationPreferenceType[]
+}
 
 export type Notification = {
   id: string
