@@ -9,6 +9,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: true,
+    headers: {
+      'Service-Worker-Allowed': '/',
+    },
     proxy: {
       '/api': { target: apiTarget, changeOrigin: true },
       '/mcp': { target: apiTarget, changeOrigin: true },

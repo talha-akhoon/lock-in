@@ -32,6 +32,7 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 TABLES = (
     "audit_logs",
     "notifications",
+    "push_subscriptions",
     "forfeit_obligations",
     "challenge_outcomes",
     "daily_checkins",

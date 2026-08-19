@@ -110,7 +110,7 @@ describe('notification bell', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Notifications' }))
     expect(screen.getByText('All caught up')).toBeInTheDocument()
-    expect(screen.getByText(/Deadlines, milestones and teammate wins land here/)).toBeInTheDocument()
+    expect(screen.getByText(/Deadlines, check-ins and teammate wins land here/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /mark all read/i })).not.toBeInTheDocument()
   })
 })

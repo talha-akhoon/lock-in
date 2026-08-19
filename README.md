@@ -35,7 +35,15 @@ the commitment, the daily record, and the reckoning at the end.
    it. If the challenge has not started yet, Check-In also lets you update
    that snapshot.
 7. **Check in.** Each day you update the goals that moved. Streaks and a
-   heatmap use the challenge's own timezone.
+   heatmap use the challenge's own timezone. Each log pings teammates in the
+   app and, if they turned on push, on their phone — so one more LC problem
+   is one more nudge. Finishing a whole team-visible goal pings them too.
+   An hourly job also pings you in the evening (challenge timezone) if you have not checked in,
+   if a streak is about to die, if a teammate has gone quiet for three days,
+   or (Sunday evening) if a required goal is behind the expected pace.
+   Deadline reminders — goals lock tomorrow, 100 / 30 / 7 days left, challenge
+   finished — go out as push too, so they reach people who have not opened
+   the app. Mute any type in Settings.
 8. **Optional: connect your own LLM.** ChatGPT custom connectors use OAuth:
    paste the `/mcp` URL, choose OAuth, sign in to LockIn and approve. Cursor
    and Claude take a personal token from Settings. The model can read your
@@ -75,6 +83,12 @@ the commitment, the daily record, and the reckoning at the end.
 - Per-member heatmap and streak on the profile.
 - Team dashboard with everyone's progress (private titles redacted).
 - Activity feed of recent updates.
+- **Install as an app** — add LockIn to the Home Screen or desktop. Settings
+  turns on push so teammate logs, missed check-ins, streaks, pace and
+  deadline reminders reach you when the tab is closed. Mute individual types
+  there: off means no bell and no push for that event. iPhone only delivers
+  push after you add LockIn to the Home Screen. Private goal titles are never
+  included.
 
 ### MCP
 
@@ -110,8 +124,18 @@ A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
 
 ### Notifications
 
-In-app only (no email): goal-lock warnings, challenge milestones (100 / 30 / 7
-days), challenge complete, a teammate finishing a goal, and a member joining.
+In-app (no email): goal-lock warnings, challenge milestones (100 / 30 / 7
+days), challenge complete, a teammate logging progress, a teammate finishing a
+goal, a member joining, you have not checked in today (evening, challenge
+timezone), a streak about to die, a teammate gone quiet for three days, and
+behind on a required goal (Sunday evening, after a week's grace). Mute any of
+those in Settings — muted types skip the bell and push.
+
+Every type except "someone joined" also goes out as Web Push to devices that
+have it enabled. An hourly GitHub Action calls an internal dispatch endpoint
+so people who have not opened the app still get lock-screen pings in the
+challenge's own evening, not 20:00 UTC. Locally you can hit the same endpoint
+with `X-LockIn-Dispatch` (HMAC of `SECRET_KEY`).
 
 ## Local setup
 
@@ -130,7 +154,8 @@ Edit `.env`:
 
 - `GOOGLE_CLIENT_ID` — the OAuth **Web client** ID (public; also sent to the
   browser as `VITE_GOOGLE_CLIENT_ID`).
-- `SECRET_KEY` — any long random string locally. Rotating it signs everyone out.
+- `SECRET_KEY` — any long random string locally. Rotating it signs everyone out
+  and invalidates push subscriptions (VAPID keys are derived from it).
 - `CHALLENGE_TIMEZONE` — default zone for new challenges (`Europe/London` is
   fine). Check-in days and streaks use the *challenge's* zone, not the
   server's.
@@ -255,7 +280,8 @@ backend/app/
   api/v1/routes/          one module per resource; handlers stay thin
   api/v1/serializers.py   response shaping, including the privacy boundary
   services/               goals, check-ins, challenges, teams, notifications,
-                          audit, progress, clock, MCP tokens, OAuth
+                          notification dispatch, audit, progress, clock, MCP
+                          tokens, OAuth, Web Push
   api/oauth.py            ChatGPT MCP connector OAuth (well-known, authorize, token)
   mcp/                    Streamable HTTP tools at /mcp; same privacy as the app
   models/domain.py        SQLAlchemy models
@@ -264,9 +290,10 @@ backend/app/
 frontend/src/
   pages/                  one file per screen, including /admin/*
   features/               goal forms, check-in payloads, help copy
-  components/             primitives, heatmap, countdown, notifications, InfoTip
+  components/             primitives, heatmap, countdown, notifications, InfoTip, PWA settings, mute toggles
   hooks/queries.ts        typed TanStack Query hooks
-  lib/                    API client, types, formatting, category metadata
+  lib/                    API client, types, formatting, category metadata, Web Push
+frontend/public/          web app manifest, service worker, icons
 ```
 
 **Privacy:** a teammate viewing a `PRIVATE` goal gets counts only. Every
@@ -321,13 +348,18 @@ gcloud run deploy lockin \
 Run Job before raising that limit. Add the `run.app` URL and the custom domain
 to the OAuth client's authorised origins.
 
-### GitHub Actions (CI, deploy, backups)
+### GitHub Actions (CI, deploy, backups, nudges)
 
 CI (`.github/workflows/ci.yml`) runs on every push and pull request. On
 `main`, after tests and the image smoke check pass, the same workflow pushes
 the image to Artifact Registry and updates Cloud Run. The Cloudflare Worker
 is deployed separately with Wrangler, not from Actions. **Deploy** is a
-manual-only fallback.
+manual-only fallback. **Notifications** (`.github/workflows/notifications.yml`)
+runs hourly: the app only sends evening nudges when the *challenge*
+timezone is at or after 20:00, so a Tokyo team is pinged at Tokyo evening
+rather than 05:00. It mints a Google ID token for `lockin-github` (audience
+`https://lockin.talhaakhoon.dev`) and POSTs
+`/api/v1/internal/notifications/dispatch`. No extra secret.
 
 Create a deploy identity once. The org blocks service-account JSON keys
 (`iam.disableServiceAccountKeyCreation`), so GitHub impersonates
@@ -432,6 +464,9 @@ starts. With a cash forfeit on the line, an untested backup does not count.
 - Admin actions require an admin membership and write an audit row that names
   the actor.
 - State-changing requests need a double-submit CSRF token.
+- The hourly notification dispatch is not a browser session: locally it
+  accepts `X-LockIn-Dispatch` (HMAC of `SECRET_KEY`); in production it
+  accepts a Google ID token from `lockin-github`. It is not CSRF-gated.
 - MCP access is a revocable personal token. ChatGPT obtains one through
   OAuth (PKCE); Cursor and Claude paste one from Settings.
 - Committed goals are immutable except visibility and sort order, unless an

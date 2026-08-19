@@ -65,7 +65,7 @@ export function NotificationBell() {
             <Loading label="Loading notifications" />
           ) : !feed.data?.notifications.length ? (
             <p className="notification-empty">
-              Nothing yet. Deadlines, milestones and teammate wins land here.
+              Nothing yet. Deadlines, check-ins and teammate wins land here.
             </p>
           ) : (
             <ul>

@@ -91,7 +91,12 @@ class NotificationType(str, enum.Enum):
     CHALLENGE_MILESTONE = "CHALLENGE_MILESTONE"
     CHALLENGE_COMPLETE = "CHALLENGE_COMPLETE"
     MEMBER_COMPLETED_GOAL = "MEMBER_COMPLETED_GOAL"
+    MEMBER_CHECKED_IN = "MEMBER_CHECKED_IN"
     MEMBER_JOINED = "MEMBER_JOINED"
+    CHECKIN_DUE = "CHECKIN_DUE"
+    STREAK_AT_RISK = "STREAK_AT_RISK"
+    MEMBER_QUIET = "MEMBER_QUIET"
+    PACE_BEHIND = "PACE_BEHIND"
 
 
 class TimestampMixin:
@@ -108,6 +113,9 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(255))
     avatar_url: Mapped[str | None] = mapped_column(String(2048))
+    muted_notification_types: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, server_default=text("'[]'::json")
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -402,6 +410,21 @@ class ForfeitObligation(TimestampMixin, Base):
         Enum(ObligationStatus), default=ObligationStatus.OUTSTANDING
     )
     settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PushSubscription(TimestampMixin, Base):
+    """A browser's Web Push subscription. One user can have several devices."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    endpoint: Mapped[str] = mapped_column(Text, unique=True)
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    user_agent: Mapped[str | None] = mapped_column(String(512))
 
 
 class Notification(TimestampMixin, Base):

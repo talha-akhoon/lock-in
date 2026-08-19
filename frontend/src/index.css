@@ -447,6 +447,12 @@ textarea { min-height: 85px; resize: vertical; }
   white-space: pre;
 }
 .mcp-token-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) 44px; align-items: center; gap: 14px; }
+.admin-section .admin-row span { color: var(--muted); font-size: 13px; }
+.mute-group h3 { margin: 18px 0 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--acid); }
+.mute-row { grid-template-columns: 1fr auto; align-items: center; gap: 16px; }
+.mute-row span { display: grid; gap: 4px; min-width: 0; }
+.mute-row small { color: var(--muted); font-weight: 400; letter-spacing: 0; text-transform: none; line-height: 1.45; }
+.mute-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--acid); }
 .code-input { text-align: center; font-size: 22px; letter-spacing: .16em; text-transform: uppercase; }
 .heatmap-grid { overflow-x: auto; }
 /* Faint but legible: the days still to come are the point of a six-month graph. */

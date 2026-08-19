@@ -16,7 +16,13 @@ from app.models.domain import (
 )
 from app.schemas.domain import GoalCreate, GoalUpdate, ProgressCreate
 from app.services import notifications
-from app.services.clock import as_utc, local_date, local_midnight, utcnow
+from app.services.clock import (
+    as_utc,
+    is_before_start,
+    local_date,
+    local_midnight,
+    utcnow,
+)
 from app.services.progress import calculate_goal_progress, goal_is_complete
 
 # Editing any of these after the lock would change what was committed to.
@@ -77,24 +83,28 @@ def goal_submission_deadline(challenge: Challenge, joined_at: datetime) -> datet
     return local_midnight(challenge, due_day)
 
 
-def participant_is_locked(participant: ChallengeParticipant) -> bool:
+def participant_is_locked(
+    participant: ChallengeParticipant, now: datetime | None = None
+) -> bool:
     if participant.goals_locked_at is not None:
         return True
-    now = utcnow()
+    moment = as_utc(now or utcnow())
     # A challenge that has ended is final even if the member's own submission
     # window never closed — an admin override late in the run can outlive it.
-    if now >= as_utc(participant.challenge.end_at):
+    if moment >= as_utc(participant.challenge.end_at):
         return True
-    return now >= as_utc(participant.goals_due_at)
+    return moment >= as_utc(participant.goals_due_at)
 
 
-def sync_participant_lock(db: Session, participant: ChallengeParticipant) -> bool:
+def sync_participant_lock(
+    db: Session, participant: ChallengeParticipant, now: datetime | None = None
+) -> bool:
     """Persist the lock once the deadline passes.
 
     Without this the lock is only ever derived, so `goals_locked_at` stays null
     forever and there is no record of *when* the commitment became final.
     """
-    locked = participant_is_locked(participant)
+    locked = participant_is_locked(participant, now)
     if locked and participant.goals_locked_at is None:
         participant.goals_locked_at = min(
             as_utc(participant.goals_due_at), as_utc(participant.challenge.end_at)
@@ -287,10 +297,18 @@ def add_progress(
     db.add(entry)
     db.flush()
     cascade_completion(db, goal)
-    if team_id and goal.completed_at and not was_complete:
-        notifications.member_completed_goal(
-            db, goal=goal, participant=participant, team_id=team_id
+    if team_id and not is_before_start(participant.challenge):
+        notifications.member_logged_progress(
+            db,
+            goal=goal,
+            participant=participant,
+            team_id=team_id,
+            entry_id=entry.id,
         )
+        if goal.completed_at and not was_complete:
+            notifications.member_completed_goal(
+                db, goal=goal, participant=participant, team_id=team_id
+            )
     return entry
 
 

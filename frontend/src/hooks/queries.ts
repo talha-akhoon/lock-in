@@ -6,7 +6,7 @@ import {
   useQueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query'
-import { api, del, patch, post } from '../lib/api'
+import { api, del, patch, post, put } from '../lib/api'
 import type {
   ActivityEntry,
   AuditLog,
@@ -23,12 +23,15 @@ import type {
   MemberProfile,
   MyGoals,
   NotificationFeed,
+  NotificationPreferences,
+  NotificationType,
   Outcomes,
   ParticipantRow,
   Role,
   TeamMember,
   CheckinPayload,
   McpToken,
+  PushConfig,
 } from '../lib/types'
 
 export const keys = {
@@ -50,6 +53,8 @@ export const keys = {
   audit: ['audit'] as const,
   participants: ['participants'] as const,
   mcpTokens: ['mcp-tokens'] as const,
+  pushConfig: ['push-config'] as const,
+  notificationPreferences: ['notification-preferences'] as const,
 }
 
 export function useAuth(): UseQueryResult<AuthMe> {
@@ -373,6 +378,29 @@ export function useMcpTokens() {
   return useQuery({
     queryKey: keys.mcpTokens,
     queryFn: () => api<McpToken[]>('/me/mcp-tokens'),
+  })
+}
+
+export function usePushConfig() {
+  return useQuery({
+    queryKey: keys.pushConfig,
+    queryFn: () => api<PushConfig>('/me/push/config'),
+  })
+}
+
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: keys.notificationPreferences,
+    queryFn: () => api<NotificationPreferences>('/me/notification-preferences'),
+  })
+}
+
+export function useUpdateNotificationPreferences() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (muted_types: NotificationType[]) =>
+      put<NotificationPreferences>('/me/notification-preferences', { muted_types }),
+    onSuccess: (data) => client.setQueryData(keys.notificationPreferences, data),
   })
 }
 

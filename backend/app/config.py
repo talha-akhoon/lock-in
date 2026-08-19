@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Canonical public origin for OAuth issuer/resource metadata. Empty means
     # derive it from the incoming Host / X-Forwarded-* headers.
     public_origin: str = ""
+    # Optional Web Push VAPID override. Empty means derive a stable pair from
+    # SECRET_KEY so production needs no extra secret. Rotating SECRET_KEY
+    # invalidates existing push subscriptions (and sessions).
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

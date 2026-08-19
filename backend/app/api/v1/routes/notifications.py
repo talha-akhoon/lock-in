@@ -1,18 +1,25 @@
-"""The notification feed.
+"""The notification feed plus mute preferences.
 
-Notifications are generated on read rather than by a background scheduler, so
-the deployment needs no always-on worker.
+Deadline rows are still generated lazily when the feed is read. Check-in, streak,
+quiet and pace nudges (and a second pass of the deadline rows for lock-screen
+push) are inserted by the hourly dispatch job.
 """
 
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.v1 import serializers
 from app.db.session import get_db
-from app.dependencies.auth import get_current_user, get_membership, require_csrf
+from app.dependencies.auth import (
+    get_current_user,
+    get_membership,
+    get_session_user,
+    require_csrf,
+)
 from app.models.domain import (
     Challenge,
     ChallengeParticipant,
@@ -26,6 +33,10 @@ from app.services.clock import utcnow
 from app.services.goals import sync_participant_lock
 
 router = APIRouter(tags=["notifications"])
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    muted_types: list[str] = Field(max_length=32)
 
 
 def _refresh(db: Session, user: User, membership: TeamMember | None) -> None:
@@ -93,3 +104,25 @@ def mark_all_read(
         row.read_at = now
     db.commit()
     return {"marked": len(rows)}
+
+
+@router.get("/me/notification-preferences")
+def notification_preferences(
+    user: User = Depends(get_session_user),
+) -> dict:
+    return notification_service.preference_payload(user)
+
+
+@router.put(
+    "/me/notification-preferences",
+    dependencies=[Depends(require_csrf)],
+)
+def update_notification_preferences(
+    payload: NotificationPreferencesUpdate,
+    user: User = Depends(get_session_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    notification_service.set_muted_types(user, payload.muted_types)
+    db.commit()
+    db.refresh(user)
+    return notification_service.preference_payload(user)
