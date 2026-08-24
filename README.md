@@ -325,6 +325,25 @@ Vite + TanStack Query + Tailwind.
 Designed to run near £0/month: Cloud Run + Neon + a Cloudflare Worker in front
 of a custom domain. Details below; you do not need them to develop locally.
 
+What should appear on the GCP cost breakdown for project `lockin-505614`:
+
+| SKU | Expected |
+| --- | --- |
+| Cloud Run | Scale-to-zero, 512Mi, `max-instances=1`, `europe-west2` (Tier 2). Request-based billing plus an hourly notification ping. Free-tier or cents. |
+| Artifact Registry | One image per deploy to `main`, ~200–400 MB before layer sharing. Cleanup keeps `:latest` and the five newest digests; untagged layers go after a day, everything else after 14 days. $0.10/GB after 0.5 GB free. |
+| Secret Manager | Three secrets (`DATABASE_URL`, `SECRET_KEY`, `GOOGLE_CLIENT_ID`). Cents. |
+| Cloud Storage | Encrypted weekly dumps in `gs://lockin-505614-backups`. GitHub and GCS both drop copies after 90 days. |
+| Cloud Logging | Cloud Run request logs. 50 GB/month free; drop `_Default` retention to 7 days if this line grows. |
+
+These are **not** part of LockIn. If they show up, delete them — they are the usual way a “near £0” project becomes a bill:
+
+- Compute Engine VMs or persistent disks
+- Cloud SQL (production Postgres is Neon)
+- HTTPS load balancing / forwarding rules / unused static IPs (often ~£15–20/month)
+- Cloud NAT or a Serverless VPC connector
+- Cloud Build triggers (GitHub Actions builds the image now)
+- A second Artifact Registry in `us-central1` from an old `cloudbuild.yaml` default
+
 ### Neon
 
 1. Create a free Neon project.
@@ -391,6 +410,12 @@ gcloud artifacts repositories add-iam-policy-binding lockin \
   --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
   --role="roles/artifactregistry.writer"
 
+gcloud artifacts repositories add-iam-policy-binding lockin \
+  --project=lockin-505614 \
+  --location=europe-west2 \
+  --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.repoAdmin"
+
 gcloud projects add-iam-policy-binding lockin-505614 \
   --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
   --role="roles/run.admin"
@@ -433,6 +458,12 @@ gcloud iam service-accounts add-iam-policy-binding \
   --member="principalSet://iam.googleapis.com/projects/979991728317/locations/global/workloadIdentityPools/github/attribute.repository/talha-akhoon/lock-in"
 ```
 
+`repoAdmin` is what lets GitHub apply `infra/gcp/artifact-registry-cleanup.json` after each deploy (writer can push images, not set cleanup). On an existing project, run that one binding, then:
+
+```bash
+./infra/gcp/apply-artifact-cleanup.sh
+```
+
 No `GCP_SA_KEY` secret. Repository secrets (GitHub → Settings → Secrets and
 variables → Actions — `gh` is not required):
 
@@ -461,7 +492,9 @@ an explicit cookie domain.
 
 `.github/workflows/backup.yml` dumps weekly (and on demand), verifies the
 archive decrypts, keeps a copy as a 90-day Actions artifact, and copies it to
-`gs://lockin-505614-backups`.
+`gs://lockin-505614-backups`. GCS copies older than 90 days are deleted on the
+next successful run. `pg_dump` must be PostgreSQL **18** (Neon’s major version);
+Ubuntu’s default `/usr/bin/pg_dump` is older and will refuse to run.
 
 `BACKUP_DATABASE_URL` is not the app's `DATABASE_URL`: `pg_dump` rejects the
 `+psycopg` driver suffix, so store Neon's **direct** `postgresql://` string.

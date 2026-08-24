@@ -11,6 +11,6 @@ images:
   - ${_IMAGE}
 substitutions:
   _GOOGLE_CLIENT_ID: ""
-  _IMAGE: us-central1-docker.pkg.dev/$PROJECT_ID/lockin/app:latest
+  _IMAGE: europe-west2-docker.pkg.dev/$PROJECT_ID/lockin/app:latest
 options:
   logging: CLOUD_LOGGING_ONLY

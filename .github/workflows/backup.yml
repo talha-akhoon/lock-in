@@ -13,6 +13,8 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Require backup secrets
         env:
           BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
@@ -34,13 +36,17 @@ jobs:
 
       - name: Install PostgreSQL client
         # Must match the server's major version, otherwise pg_dump refuses to run.
+        # Neon is PostgreSQL 18. Installing the 18 client is not enough on its
+        # own: Ubuntu's /usr/bin/pg_dump stays on 16 unless 18's bin dir is
+        # first on PATH.
         run: |
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
             | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
           echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
+          sudo apt-get install -y postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "${GITHUB_PATH}"
 
       - name: Dump and encrypt database
         env:
@@ -61,6 +67,7 @@ jobs:
 
           file="lockin-$(date -u +%Y-%m-%d).sql.gz.enc"
           echo "BACKUP_FILE=${file}" >> "${GITHUB_ENV}"
+          pg_dump --version
           pg_dump "${BACKUP_DATABASE_URL}" --no-owner --no-acl \
             | gzip \
             | openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 \
@@ -107,3 +114,6 @@ jobs:
           set -euo pipefail
           gsutil cp "${BACKUP_FILE}" "gs://lockin-505614-backups/${BACKUP_FILE}"
           gsutil ls -l "gs://lockin-505614-backups/${BACKUP_FILE}"
+
+      - name: Prune GCS backups older than 90 days
+        run: infra/gcp/prune-old-backups.sh
