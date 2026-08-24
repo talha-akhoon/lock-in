@@ -387,6 +387,32 @@ After changing the Worker, deploy it (`cd infra/cloudflare && npx wrangler deplo
 so hashed `/assets/*` are cached at the edge. Cloud Run updates from Actions
 do not push the Worker.
 
+The monthly cost-breakdown lags by many hours. To see whether crawlers are
+off the origin the same day, use the Cloud Run service page (Metrics, then
+Billing) rather than the billing report:
+
+1. Confirm the new revision is live: timeout 120s, CPU throttling on, CPU
+   boost off. `gcloud run services describe lockin --region europe-west2`.
+2. Direct origin must 404; the custom domain must still 200:
+
+   ```bash
+   curl -sI "https://lockin-979991728317.europe-west2.run.app/dashboard" | head -n 1
+   curl -sI "https://lockin.talhaakhoon.dev/dashboard" | head -n 1
+   ```
+
+3. On Cloud Run → `lockin` → **Metrics**, compare the 7 days before deploy
+   to the 24–48 hours after. **Billable instance time** and **Instance
+   count** should collapse toward zero (hourly notification pings and real
+   check-ins still wake it briefly). **Request count** can stay high —
+   crawlers still hit `*.run.app`, they just get a cheap 404.
+4. The same page’s **Billing** tab (the £/day bars) should fall off the
+   ~£1/day spike within a day or two. The project cost-breakdown will
+   follow after that.
+
+If billable instance time does not drop, the new revision is not serving
+(check Traffic), or something is still holding a request open (look at
+request latency, not count).
+
 ### GitHub Actions (CI, deploy, backups, nudges)
 
 CI (`.github/workflows/ci.yml`) runs on every push and pull request. On
