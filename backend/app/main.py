@@ -9,6 +9,7 @@ from app.api.oauth import router as oauth_router
 from app.api.v1.router import router
 from app.config import get_settings
 from app.mcp.server import McpDispatchMiddleware, build_mcp_asgi, gateway, mcp
+from app.origin_gate import RunAppGateMiddleware
 
 settings = get_settings()
 production = settings.environment == "production"
@@ -36,15 +37,28 @@ app = FastAPI(
 app.include_router(router, prefix="/api/v1")
 app.include_router(oauth_router)
 app.add_middleware(McpDispatchMiddleware)
+# Last added runs first: reject raw *.run.app crawlers before MCP or the SPA.
+app.add_middleware(RunAppGateMiddleware)
 
 # In production these are unregistered, so without this the SPA catch-all would
 # answer them with the app shell and a 200 — a confusing "yes" to a schema request.
 SCHEMA_PATHS = {"docs", "redoc", "openapi.json"} if production else set()
 
+
+class HashedAssets(StaticFiles):
+    """Vite fingerprints filenames under /assets, so they can be cached forever."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
 dist = Path(settings.frontend_dist).resolve()
 assets = dist / "assets"
 if assets.exists():
-    app.mount("/assets", StaticFiles(directory=assets), name="assets")
+    app.mount("/assets", HashedAssets(directory=assets), name="assets")
 
 # Files copied from frontend/public (manifest, service worker, icons). Guessing
 # from the suffix is enough for PNG/SVG; the PWA bits need explicit types.
@@ -96,4 +110,4 @@ def spa(path: str) -> FileResponse:
     index = dist / "index.html"
     if not index.exists():
         return FileResponse(Path(__file__).parent / "placeholder.html")
-    return FileResponse(index)
+    return FileResponse(index, headers={"Cache-Control": "no-cache"})

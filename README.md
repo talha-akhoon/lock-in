@@ -329,7 +329,7 @@ What should appear on the GCP cost breakdown for project `lockin-505614`:
 
 | SKU | Expected |
 | --- | --- |
-| Cloud Run | Scale-to-zero, 512Mi, `max-instances=1`, `europe-west2` (Tier 2). Request-based billing plus an hourly notification ping. Free-tier or cents. |
+| Cloud Run | Scale-to-zero, 512Mi, `max-instances=1`, `europe-west2` (Tier 2), CPU throttled, 120s timeout, no startup CPU boost. Direct hits to the `*.run.app` URL 404 unless they come through the Worker (`X-Forwarded-Host`). Hashed `/assets/*` are cached at Cloudflare. Request-based billing plus an hourly notification ping. Free-tier or cents once crawlers are off the origin. |
 | Artifact Registry | One image per deploy to `main`, ~200–400 MB before layer sharing. Cleanup keeps `:latest` and the five newest digests; untagged layers go after a day, everything else after 14 days. $0.10/GB after 0.5 GB free. |
 | Secret Manager | Three secrets (`DATABASE_URL`, `SECRET_KEY`, `GOOGLE_CLIENT_ID`). Cents. |
 | Cloud Storage | Encrypted weekly dumps in `gs://lockin-505614-backups`. GitHub and GCS both drop copies after 90 days. |
@@ -371,13 +371,21 @@ gcloud run deploy lockin \
   --min-instances 0 \
   --max-instances 1 \
   --memory 512Mi \
+  --cpu-throttling \
+  --no-cpu-boost \
+  --timeout 120 \
   --set-env-vars "ENVIRONMENT=production,SECURE_COOKIES=true,FRONTEND_DIST=/frontend/dist,CHALLENGE_TIMEZONE=Europe/London,PUBLIC_ORIGIN=https://lockin.talhaakhoon.dev" \
   --set-secrets "DATABASE_URL=lockin-database-url:latest,SECRET_KEY=lockin-secret-key:latest,GOOGLE_CLIENT_ID=lockin-google-client-id:latest"
 ```
 
 `max-instances=1` avoids concurrent Alembic runs. Move migrations to a Cloud
-Run Job before raising that limit. Add the `run.app` URL and the custom domain
-to the OAuth client's authorised origins.
+Run Job before raising that limit. Authorised JavaScript origins: the custom
+domain only. The `*.run.app` URL is the Worker's origin, not a user-facing
+host — crawlers that hit it directly get a 404.
+
+After changing the Worker, deploy it (`cd infra/cloudflare && npx wrangler deploy`)
+so hashed `/assets/*` are cached at the edge. Cloud Run updates from Actions
+do not push the Worker.
 
 ### GitHub Actions (CI, deploy, backups, nudges)
 
