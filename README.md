@@ -325,6 +325,25 @@ Vite + TanStack Query + Tailwind.
 Designed to run near £0/month: Cloud Run + Neon + a Cloudflare Worker in front
 of a custom domain. Details below; you do not need them to develop locally.
 
+What should appear on the GCP cost breakdown for project `lockin-505614`:
+
+| SKU | Expected |
+| --- | --- |
+| Cloud Run | Scale-to-zero, 512Mi, `max-instances=1`, `europe-west2` (Tier 2), CPU throttled, 120s timeout, no startup CPU boost. Direct hits to the `*.run.app` URL 404 unless they come through the Worker (`X-Forwarded-Host`). Hashed `/assets/*` are cached at Cloudflare. Request-based billing plus an hourly notification ping. Free-tier or cents once crawlers are off the origin. |
+| Artifact Registry | One image per deploy to `main`, ~200–400 MB before layer sharing. Cleanup keeps `:latest` and the five newest digests; untagged layers go after a day, everything else after 14 days. $0.10/GB after 0.5 GB free. |
+| Secret Manager | Three secrets (`DATABASE_URL`, `SECRET_KEY`, `GOOGLE_CLIENT_ID`). Cents. |
+| Cloud Storage | Encrypted weekly dumps in `gs://lockin-505614-backups`. GitHub and GCS both drop copies after 90 days. |
+| Cloud Logging | Cloud Run request logs. 50 GB/month free; drop `_Default` retention to 7 days if this line grows. |
+
+These are **not** part of LockIn. If they show up, delete them — they are the usual way a “near £0” project becomes a bill:
+
+- Compute Engine VMs or persistent disks
+- Cloud SQL (production Postgres is Neon)
+- HTTPS load balancing / forwarding rules / unused static IPs (often ~£15–20/month)
+- Cloud NAT or a Serverless VPC connector
+- Cloud Build triggers (GitHub Actions builds the image now)
+- A second Artifact Registry in `us-central1` from an old `cloudbuild.yaml` default
+
 ### Neon
 
 1. Create a free Neon project.
@@ -352,13 +371,47 @@ gcloud run deploy lockin \
   --min-instances 0 \
   --max-instances 1 \
   --memory 512Mi \
+  --cpu-throttling \
+  --no-cpu-boost \
+  --timeout 120 \
   --set-env-vars "ENVIRONMENT=production,SECURE_COOKIES=true,FRONTEND_DIST=/frontend/dist,CHALLENGE_TIMEZONE=Europe/London,PUBLIC_ORIGIN=https://lockin.talhaakhoon.dev" \
   --set-secrets "DATABASE_URL=lockin-database-url:latest,SECRET_KEY=lockin-secret-key:latest,GOOGLE_CLIENT_ID=lockin-google-client-id:latest"
 ```
 
 `max-instances=1` avoids concurrent Alembic runs. Move migrations to a Cloud
-Run Job before raising that limit. Add the `run.app` URL and the custom domain
-to the OAuth client's authorised origins.
+Run Job before raising that limit. Authorised JavaScript origins: the custom
+domain only. The `*.run.app` URL is the Worker's origin, not a user-facing
+host — crawlers that hit it directly get a 404.
+
+After changing the Worker, deploy it (`cd infra/cloudflare && npx wrangler deploy`)
+so hashed `/assets/*` are cached at the edge. Cloud Run updates from Actions
+do not push the Worker.
+
+The monthly cost-breakdown lags by many hours. To see whether crawlers are
+off the origin the same day, use the Cloud Run service page (Metrics, then
+Billing) rather than the billing report:
+
+1. Confirm the new revision is live: timeout 120s, CPU throttling on, CPU
+   boost off. `gcloud run services describe lockin --region europe-west2`.
+2. Direct origin must 404; the custom domain must still 200:
+
+   ```bash
+   curl -sI "https://lockin-979991728317.europe-west2.run.app/dashboard" | head -n 1
+   curl -sI "https://lockin.talhaakhoon.dev/dashboard" | head -n 1
+   ```
+
+3. On Cloud Run → `lockin` → **Metrics**, compare the 7 days before deploy
+   to the 24–48 hours after. **Billable instance time** and **Instance
+   count** should collapse toward zero (hourly notification pings and real
+   check-ins still wake it briefly). **Request count** can stay high —
+   crawlers still hit `*.run.app`, they just get a cheap 404.
+4. The same page’s **Billing** tab (the £/day bars) should fall off the
+   ~£1/day spike within a day or two. The project cost-breakdown will
+   follow after that.
+
+If billable instance time does not drop, the new revision is not serving
+(check Traffic), or something is still holding a request open (look at
+request latency, not count).
 
 ### GitHub Actions (CI, deploy, backups, nudges)
 
@@ -390,6 +443,12 @@ gcloud artifacts repositories add-iam-policy-binding lockin \
   --location=europe-west2 \
   --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
   --role="roles/artifactregistry.writer"
+
+gcloud artifacts repositories add-iam-policy-binding lockin \
+  --project=lockin-505614 \
+  --location=europe-west2 \
+  --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.repoAdmin"
 
 gcloud projects add-iam-policy-binding lockin-505614 \
   --member="serviceAccount:lockin-github@lockin-505614.iam.gserviceaccount.com" \
@@ -433,6 +492,12 @@ gcloud iam service-accounts add-iam-policy-binding \
   --member="principalSet://iam.googleapis.com/projects/979991728317/locations/global/workloadIdentityPools/github/attribute.repository/talha-akhoon/lock-in"
 ```
 
+`repoAdmin` is what lets GitHub apply `infra/gcp/artifact-registry-cleanup.json` after each deploy (writer can push images, not set cleanup). On an existing project, run that one binding, then:
+
+```bash
+./infra/gcp/apply-artifact-cleanup.sh
+```
+
 No `GCP_SA_KEY` secret. Repository secrets (GitHub → Settings → Secrets and
 variables → Actions — `gh` is not required):
 
@@ -461,7 +526,9 @@ an explicit cookie domain.
 
 `.github/workflows/backup.yml` dumps weekly (and on demand), verifies the
 archive decrypts, keeps a copy as a 90-day Actions artifact, and copies it to
-`gs://lockin-505614-backups`.
+`gs://lockin-505614-backups`. GCS copies older than 90 days are deleted on the
+next successful run. `pg_dump` must be PostgreSQL **18** (Neon’s major version);
+Ubuntu’s default `/usr/bin/pg_dump` is older and will refuse to run.
 
 `BACKUP_DATABASE_URL` is not the app's `DATABASE_URL`: `pg_dump` rejects the
 `+psycopg` driver suffix, so store Neon's **direct** `postgresql://` string.

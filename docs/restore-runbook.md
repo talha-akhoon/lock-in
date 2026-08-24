@@ -13,7 +13,7 @@ brackets>`.
 `lockin-<YYYY-MM-DD>.sql.gz.enc` to two places:
 
 - a GitHub Actions artifact named `lockin-backup-<run-id>` (kept 90 days)
-- `gs://lockin-505614-backups/` (kept until you delete it)
+- `gs://lockin-505614-backups/` (dropped after 90 days, same window as the artifact)
 
 That is a plain `pg_dump` (SQL format, no owners, no ACLs), gzipped, then
 encrypted with AES-256-CBC using PBKDF2 at 100,000 iterations.
@@ -26,8 +26,10 @@ Two secrets are required, and neither may be the value the application uses:
 | `BACKUP_ENCRYPTION_KEY` | A long passphrase stored somewhere other than GitHub |
 
 `pg_dump` rejects the `postgresql+psycopg://` scheme the application uses, so
-the URL must not carry the driver suffix. The workflow fails loudly rather than
-silently producing an empty file if it does.
+the URL must not carry the driver suffix. The client must be PostgreSQL 18
+(Neon’s major version) and ahead of Ubuntu’s default `pg_dump` on `PATH`.
+The workflow fails loudly rather than silently producing an empty file if the
+URL still has a driver suffix.
 
 ## Step 1 — Get the archive
 
@@ -79,7 +81,7 @@ docker run -d --name lockin-restore \
   -e POSTGRES_USER=lockin \
   -e POSTGRES_DB=lockin_restore \
   -p 55433:5432 \
-  postgres:17-alpine
+  postgres:18-alpine
 
 until docker exec lockin-restore pg_isready -U lockin; do sleep 1; done
 

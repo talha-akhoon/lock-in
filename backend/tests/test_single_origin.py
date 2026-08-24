@@ -107,6 +107,32 @@ def test_built_public_files_are_served_as_themselves(tmp_path, monkeypatch) -> N
             shell = client.get("/dashboard")
             assert shell.status_code == 200
             assert 'id="root"' in shell.text or "id='root'" in shell.text
+            assert shell.headers.get("cache-control") == "no-cache"
+    finally:
+        monkeypatch.delenv("FRONTEND_DIST", raising=False)
+        config.get_settings.cache_clear()
+        importlib.reload(main)
+
+
+def test_fingerprinted_assets_are_cached_forever(tmp_path, monkeypatch) -> None:
+    import importlib
+
+    from app import config, main
+
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "index-abc.js").write_text("export {}\n")
+    (tmp_path / "index.html").write_text('<div id="root"></div>')
+    monkeypatch.setenv("FRONTEND_DIST", str(tmp_path))
+    config.get_settings.cache_clear()
+    reloaded = importlib.reload(main)
+    try:
+        with TestClient(reloaded.app) as client:
+            asset = client.get("/assets/index-abc.js")
+            assert asset.status_code == 200
+            assert (
+                asset.headers.get("cache-control")
+                == "public, max-age=31536000, immutable"
+            )
     finally:
         monkeypatch.delenv("FRONTEND_DIST", raising=False)
         config.get_settings.cache_clear()
