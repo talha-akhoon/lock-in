@@ -115,6 +115,56 @@ def test_mcp_http_accepts_a_valid_token(team_setup, app) -> None:
     assert response.status_code != 401
 
 
+def test_mcp_http_rate_limits_a_user(team_setup, app, monkeypatch) -> None:
+    from app import config
+    from app.services.rate_limit import reset
+
+    monkeypatch.setenv("MCP_RATE_LIMIT_PER_MINUTE", "30")
+    monkeypatch.setenv("MCP_RATE_LIMIT_BURST", "3")
+    config.get_settings.cache_clear()
+    reset()
+    raw = _mint(team_setup.admin_client)["token"]
+    try:
+        with TestClient(app) as client:
+            headers = {"Authorization": f"Bearer {raw}"}
+            statuses = [
+                client.post("/mcp", headers=headers, json={}).status_code
+                for _ in range(4)
+            ]
+        assert 429 not in statuses[:3]
+        assert statuses[3] == 429
+        with TestClient(app) as client:
+            limited = client.post("/mcp", headers=headers, json={})
+        assert limited.status_code == 429
+        assert limited.json()["detail"] == "Rate limit exceeded"
+        assert int(limited.headers["retry-after"]) >= 1
+    finally:
+        monkeypatch.delenv("MCP_RATE_LIMIT_PER_MINUTE", raising=False)
+        monkeypatch.delenv("MCP_RATE_LIMIT_BURST", raising=False)
+        config.get_settings.cache_clear()
+        reset()
+
+
+def test_mcp_http_rate_limits_missing_tokens(app, monkeypatch) -> None:
+    from app import config
+    from app.services.rate_limit import reset
+
+    monkeypatch.setenv("MCP_ANON_RATE_LIMIT_PER_MINUTE", "30")
+    monkeypatch.setenv("MCP_ANON_RATE_LIMIT_BURST", "2")
+    config.get_settings.cache_clear()
+    reset()
+    try:
+        with TestClient(app) as client:
+            statuses = [client.post("/mcp").status_code for _ in range(3)]
+        assert statuses[:2] == [401, 401]
+        assert statuses[2] == 429
+    finally:
+        monkeypatch.delenv("MCP_ANON_RATE_LIMIT_PER_MINUTE", raising=False)
+        monkeypatch.delenv("MCP_ANON_RATE_LIMIT_BURST", raising=False)
+        config.get_settings.cache_clear()
+        reset()
+
+
 def test_team_tools_reject_a_user_with_no_team(client_factory, make_user, db) -> None:
     user = make_user()
     with pytest.raises(HTTPException) as exc:

@@ -53,7 +53,8 @@ the commitment, the daily record, and the reckoning at the end.
    goals, see teammates' team-visible progress, add goals and sub-steps (even
    after the lock, until the challenge ends), edit your goals before the lock,
    and log today's check-in. Once locked it cannot change your wording or
-   targets. LockIn stays the source of truth. Connecting shares your view of
+   targets. `/mcp` allows 60 authenticated calls per minute per member (burst
+   of 30). LockIn stays the source of truth. Connecting shares your view of
    the team with that LLM provider. Private goals stay in LockIn.
 9. **Finish.** When the end date passes, required goals are scored. Anyone who
    fell short owes the forfeit to each other member. The results screen lists
@@ -121,6 +122,9 @@ A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
 - Revoke a token from Settings if it leaks (OAuth connections appear as
   “ChatGPT”). Connecting shares that member's view of the team with their LLM
   provider.
+- **Rate limit** — 60 calls per minute per member after auth (burst of 30 so
+  one multi-tool turn is fine). Missing or invalid tokens are limited per
+  client IP. Over the cap, `/mcp` returns 429 with `Retry-After`.
 
 ### Team and admin
 

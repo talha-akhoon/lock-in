@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     # invalidates existing push subscriptions (and sessions).
     vapid_public_key: str = ""
     vapid_private_key: str = ""
+    # /mcp only. Per user after auth; per client IP for missing/invalid tokens.
+    # 0 disables. Burst covers one multi-tool LLM turn; per_minute is the refill.
+    mcp_rate_limit_per_minute: int = 60
+    mcp_rate_limit_burst: int = 30
+    mcp_anon_rate_limit_per_minute: int = 30
+    mcp_anon_rate_limit_burst: int = 10
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

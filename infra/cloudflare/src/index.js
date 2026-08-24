@@ -35,6 +35,8 @@ export default {
 
     const headers = new Headers(request.headers)
     for (const name of STRIPPED_REQUEST_HEADERS) headers.delete(name)
+    const clientIp = request.headers.get('CF-Connecting-IP')
+    if (clientIp) headers.set('X-Forwarded-For', clientIp)
     // Cloud Run runs behind --proxy-headers, so the app trusts these for
     // scheme and client IP. X-Forwarded-Host is also the gate that lets the
     // origin distinguish this Worker from crawlers hitting *.run.app directly.

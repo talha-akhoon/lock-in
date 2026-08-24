@@ -27,6 +27,7 @@ from app.models.domain import (
     TrackingType,
 )
 from app.schemas.domain import CheckinUpdate, GoalChildrenOrder, GoalCreate, GoalUpdate
+from app.services import rate_limit
 from app.services.mcp_tokens import authenticate as authenticate_mcp_token
 from app.services.oauth import origin_from_headers, www_authenticate
 
@@ -364,6 +365,13 @@ class McpGateway:
         }
         authorization = headers.get("authorization", "")
         if not authorization.lower().startswith("bearer "):
+            if await _reject_if_limited(
+                send,
+                f"anon:{_client_ip(scope, headers)}",
+                get_settings().mcp_anon_rate_limit_per_minute,
+                get_settings().mcp_anon_rate_limit_burst,
+            ):
+                return
             await _send_json(
                 send,
                 401,
@@ -379,12 +387,26 @@ class McpGateway:
                 session, authorization.split(" ", 1)[1].strip()
             )
             if user is None:
+                if await _reject_if_limited(
+                    send,
+                    f"anon:{_client_ip(scope, headers)}",
+                    get_settings().mcp_anon_rate_limit_per_minute,
+                    get_settings().mcp_anon_rate_limit_burst,
+                ):
+                    return
                 await _send_json(
                     send,
                     401,
                     "Invalid token",
                     extra_headers=_auth_challenge(headers),
                 )
+                return
+            if await _reject_if_limited(
+                send,
+                f"user:{user.id}",
+                get_settings().mcp_rate_limit_per_minute,
+                get_settings().mcp_rate_limit_burst,
+            ):
                 return
             user_token = current_user.set(user)
             db_token = current_db.set(session)
@@ -409,6 +431,32 @@ def _auth_challenge(headers: dict[str, str]) -> list[tuple[bytes, bytes]]:
         (b"www-authenticate", www_authenticate(origin_from_headers(headers)).encode()),
         (b"access-control-allow-origin", b"*"),
     ]
+
+
+def _client_ip(scope: dict, headers: dict[str, str]) -> str:
+    forwarded = headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or "unknown"
+    client = scope.get("client")
+    if client and client[0]:
+        return str(client[0])
+    return "unknown"
+
+
+async def _reject_if_limited(send, key: str, per_minute: int, burst: int) -> bool:
+    allowed, retry_after = rate_limit.allow(key, per_minute=per_minute, burst=burst)
+    if allowed:
+        return False
+    await _send_json(
+        send,
+        429,
+        "Rate limit exceeded",
+        extra_headers=[
+            (b"retry-after", str(retry_after).encode()),
+            (b"access-control-allow-origin", b"*"),
+        ],
+    )
+    return True
 
 
 async def _send_json(
