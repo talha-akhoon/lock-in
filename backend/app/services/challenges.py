@@ -29,7 +29,11 @@ from app.services.clock import (
     utcnow,
 )
 from app.services.goals import load_goal_tree
-from app.services.progress import calculate_goal_progress, goal_is_complete
+from app.services.progress import (
+    calculate_goal_progress,
+    goal_is_complete,
+    scored_goals,
+)
 
 OPEN_CHALLENGE_STATUSES = (
     ChallengeStatus.DRAFT,
@@ -206,9 +210,12 @@ def evaluate_challenge(db: Session, challenge: Challenge) -> list[ChallengeOutco
         optional = [goal for goal in roots if not goal.required]
         required_done = sum(1 for goal in required if goal_is_complete(goal))
         optional_done = sum(1 for goal in optional if goal_is_complete(goal))
+        # The recorded figure has to match the percentage the member watched all
+        # challenge, so it is measured over the required goals too.
+        scored = scored_goals(roots)
         progress = (
-            sum(calculate_goal_progress(goal) for goal in roots) / len(roots)
-            if roots
+            sum(calculate_goal_progress(goal) for goal in scored) / len(scored)
+            if scored
             else 0
         )
         # Submitting nothing is a failure, not a free pass.

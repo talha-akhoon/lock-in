@@ -6,6 +6,19 @@ from decimal import Decimal
 from app.models.domain import Goal, TargetDirection, TrackingType
 
 
+def scored_goals(goals: list[Goal]) -> list[Goal]:
+    """The goals a percentage is measured over: the required ones.
+
+    Optional goals are upside. Averaging them in means committing to one
+    instantly dilutes the number, so a member is punished for taking on more
+    than the forfeit demanded. Falls back to the whole list when nothing in it
+    is required, so an all-optional set still reads as real progress instead of
+    vanishing from the aggregate.
+    """
+    required = [goal for goal in goals if goal.required]
+    return required or goals
+
+
 def calculate_goal_progress(goal: Goal) -> float:
     """Percentage complete, always clamped to 0..100.
 
@@ -62,7 +75,8 @@ def goal_is_complete(goal: Goal) -> bool:
 def average_progress(goals: list[Goal]) -> float:
     if not goals:
         return 0.0
-    return round(sum(calculate_goal_progress(goal) for goal in goals) / len(goals), 1)
+    scored = scored_goals(goals)
+    return round(sum(calculate_goal_progress(goal) for goal in scored) / len(scored), 1)
 
 
 def checkin_streak(dates: list[date], today: date) -> int:

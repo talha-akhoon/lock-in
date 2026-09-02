@@ -21,8 +21,9 @@ the commitment, the daily record, and the reckoning at the end.
    Each goal has a tracking method (see below). When you add a goal, record
    where you are now. On a running total that amount already counts; on a
    number-to-target goal it is the line progress is measured from. Goals can
-   be required (they
-   decide the forfeit) or optional (they only affect your percentage). A goal
+   be required (they decide the forfeit and are what your percentage is
+   measured over) or optional (pure upside: they are tracked and shown, but
+   left out of the percentage, so taking one on never costs you points). A goal
    can be visible to the team or private — private goals still count, but
    teammates see aggregates only, never the title or values.
 5. **Commit.** After a short submission window the commitment locks. Titles,
@@ -72,8 +73,9 @@ the commitment, the daily record, and the reckoning at the end.
   - **Set a percentage yourself** — type 0–100 when you think you have
     moved (a side project you cannot count cleanly).
 - **Steps** — optional one-level sub-goals. You check in on the steps; the
-  parent averages its required children. Use this when the work is a few named
-  finish-lines, not when you already have a running total. Drag them into the
+  parent averages its required children, the same rule categories use. Use
+  this when the work is a few named finish-lines, not when you already have a
+  running total. Drag them into the
   order you want; that order is what check-in uses, and it can still change
   after the lock.
 - In-app **?** buttons next to tracking method and Add step explain the above.

@@ -228,7 +228,9 @@ export function GoalForm({
             /* A disabled tick renders grey in every browser, which makes a required
                goal look optional. Once locked, state this in words instead. */
             <p className="locked-fact">
-              {goal?.required ? 'Required to avoid the forfeit' : 'Optional — no forfeit attached'}
+              {goal?.required
+                ? 'Required to avoid the forfeit'
+                : 'Optional — no forfeit, and kept out of your percentage'}
             </p>
           ) : (
             <label className="checkbox">

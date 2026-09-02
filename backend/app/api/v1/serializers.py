@@ -11,7 +11,7 @@ import uuid
 
 from app.models.domain import ChallengeParticipant, Goal, GoalVisibility, TeamMember
 from app.services.goals import participant_is_locked
-from app.services.progress import calculate_goal_progress
+from app.services.progress import calculate_goal_progress, scored_goals
 
 
 def goal_detail(goal: Goal) -> dict:
@@ -86,19 +86,24 @@ def goal_tree(goals: list[Goal], *, viewer_is_owner: bool) -> dict:
 
 
 def category_progress(goals: list[Goal]) -> dict[str, float]:
-    """Mean progress per category across all goals, private ones included.
+    """Mean progress per category over required goals, private ones included.
 
     Aggregates are deliberately computed before redaction: a member's headline
     number must reflect everything they committed to.
+
+    Optional goals are left out, matching how a parent scores its steps. They
+    carry no forfeit, so adding one must never cost a member percentage points.
     """
-    buckets: dict[str, list[float]] = {}
+    buckets: dict[str, list[Goal]] = {}
     for goal in goals:
-        buckets.setdefault(goal.category.value, []).append(
-            calculate_goal_progress(goal)
-        )
+        buckets.setdefault(goal.category.value, []).append(goal)
     return {
-        category: round(sum(values) / len(values), 1)
-        for category, values in buckets.items()
+        category: round(
+            sum(calculate_goal_progress(goal) for goal in scored) / len(scored),
+            1,
+        )
+        for category, members in buckets.items()
+        if (scored := scored_goals(members))
     }
 
 
