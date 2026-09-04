@@ -6,6 +6,19 @@ from decimal import Decimal
 from app.models.domain import Goal, TargetDirection, TrackingType
 
 
+def scored_goals(goals: list[Goal]) -> list[Goal]:
+    """The goals a percentage is measured over: the required ones.
+
+    Optional goals are upside. Averaging them in means committing to one
+    instantly dilutes the number, so a member is punished for taking on more
+    than the forfeit demanded. Falls back to the whole list when nothing in it
+    is required, so an all-optional set still reads as real progress instead of
+    vanishing from the aggregate.
+    """
+    required = [goal for goal in goals if goal.required]
+    return required or goals
+
+
 def calculate_goal_progress(goal: Goal) -> float:
     """Percentage complete, always clamped to 0..100.
 
@@ -59,10 +72,46 @@ def goal_is_complete(goal: Goal) -> bool:
     return calculate_goal_progress(goal) >= 100
 
 
+def category_progress(goals: list[Goal]) -> dict[str, float]:
+    """Mean progress per category over required goals, private ones included.
+
+    Optional goals are left out of each category's score, matching how a
+    parent scores its steps. An all-optional category still reports, so a
+    category the member created does not vanish from the dashboard.
+    """
+    buckets: dict[str, list[Goal]] = {}
+    for goal in goals:
+        buckets.setdefault(goal.category.value, []).append(goal)
+    return {
+        category: round(
+            sum(calculate_goal_progress(goal) for goal in scored) / len(scored),
+            1,
+        )
+        for category, members in buckets.items()
+        if (scored := scored_goals(members))
+    }
+
+
+def overall_progress(goals: list[Goal]) -> float:
+    """Mean of category scores that contain a required goal.
+
+    An all-optional category still appears on the dashboard (see
+    category_progress) but must not dilute the headline number. If nothing
+    is required, fall back to averaging what is there so an all-optional
+    board is not a silent 0%.
+    """
+    required = [goal for goal in goals if goal.required]
+    categories = category_progress(required or goals)
+    if not categories:
+        return 0.0
+    return round(sum(categories.values()) / len(categories), 1)
+
+
 def average_progress(goals: list[Goal]) -> float:
     if not goals:
         return 0.0
-    return round(sum(calculate_goal_progress(goal) for goal in goals) / len(goals), 1)
+    scored = scored_goals(goals)
+    return round(sum(calculate_goal_progress(goal) for goal in scored) / len(scored), 1)
 
 
 def checkin_streak(dates: list[date], today: date) -> int:

@@ -2,7 +2,12 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from app.models.domain import Goal, TargetDirection, TrackingType
-from app.services.progress import calculate_goal_progress, checkin_streak
+from app.services.progress import (
+    average_progress,
+    calculate_goal_progress,
+    checkin_streak,
+    scored_goals,
+)
 
 
 def numeric_goal(**overrides) -> Goal:
@@ -106,3 +111,25 @@ def test_milestone_completion() -> None:
         completed_at=datetime.now(UTC),
     )
     assert calculate_goal_progress(goal) == 100
+
+
+def test_optional_goal_does_not_dilute_the_average() -> None:
+    """Committing to extra, unforfeited work must not cost you percentage."""
+    goals = [
+        numeric_goal(current_value=Decimal(120)),
+        numeric_goal(current_value=Decimal(105)),
+    ]
+    before = average_progress(goals)
+    goals.append(numeric_goal(current_value=Decimal(90), required=False))
+    assert average_progress(goals) == before == 75.0
+
+
+def test_average_falls_back_to_optional_when_nothing_is_required() -> None:
+    goals = [numeric_goal(current_value=Decimal(120), required=False)]
+    assert average_progress(goals) == 100.0
+
+
+def test_scored_goals_keeps_only_required() -> None:
+    required = numeric_goal()
+    optional = numeric_goal(required=False)
+    assert scored_goals([required, optional]) == [required]

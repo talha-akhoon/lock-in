@@ -161,8 +161,8 @@ function CategoryStep({
       )}
 
       <p className="hint">
-        Required goals decide the {formatPence(forfeitPence)} forfeit. Optional ones only affect your
-        percentage.
+        Required goals decide the {formatPence(forfeitPence)} forfeit and are what your percentage is
+        measured over. Optional ones are tracked and shown, but left out of that number.
       </p>
 
       <div className="wizard-actions">

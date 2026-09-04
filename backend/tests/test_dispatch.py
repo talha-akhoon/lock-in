@@ -159,6 +159,11 @@ def test_quiet_does_not_repeat_until_they_check_in_again(
 
 
 def test_sunday_evening_pace_nudge(team_setup, make_goal, db) -> None:
+    """Dispatch must honour the supplied `now`, not the wall clock.
+
+    This fixture ends in August 2026. After that date a wall-clock status
+    sync would complete the challenge and skip the pace nudge.
+    """
     make_goal(team_setup.admin_participant)
     align_challenge(db, team_setup.challenge, SUN_EVENING, started_days_ago=20, days=30)
     notification_dispatch.run(db, now=SUN_EVENING)

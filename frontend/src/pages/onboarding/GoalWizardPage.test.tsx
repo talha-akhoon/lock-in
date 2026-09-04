@@ -32,6 +32,9 @@ describe('goal wizard', () => {
 
     await screen.findByText('What does progress look like here?')
     expect(screen.getByText('Prayer, scripture, knowledge, character.')).toBeInTheDocument()
+    expect(
+      screen.getByText(/optional ones are tracked and shown, but left out of that number/i),
+    ).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /next area/i }))
     expect(screen.getByText('Strength, weight, endurance, health.')).toBeInTheDocument()
@@ -50,6 +53,9 @@ describe('goal wizard', () => {
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: /add a goal/i }))
+    expect(
+      screen.getByText(/untick for optional — no forfeit, and kept out of your percentage/i),
+    ).toBeInTheDocument()
     await user.type(screen.getByLabelText(/goal title/i), 'Read scripture daily')
     await user.click(screen.getByRole('radio', { name: /done or not done/i }))
     await user.click(screen.getByRole('button', { name: 'Add goal' }))
