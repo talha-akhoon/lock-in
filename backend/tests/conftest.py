@@ -80,6 +80,9 @@ def sessionmaker_for_tests(engine: Engine) -> sessionmaker:
 
 @pytest.fixture(autouse=True)
 def clean_database(engine: Engine) -> Iterator[None]:
+    from app.services.rate_limit import reset as reset_rate_limits
+
+    reset_rate_limits()
     yield
     with engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {', '.join(TABLES)} CASCADE"))
