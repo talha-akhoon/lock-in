@@ -25,10 +25,13 @@ def test_upgrade_is_idempotent(engine: Engine) -> None:
 
     from tests.conftest import TEST_DATABASE_URL, _alembic_config
 
-    command.upgrade(_alembic_config(TEST_DATABASE_URL), "head")
+    config = _alembic_config(TEST_DATABASE_URL)
+    command.upgrade(config, "head")
     with engine.connect() as conn:
         version = conn.execute(text("select version_num from alembic_version")).scalar()
-    assert version == "0007"
+    from alembic.script import ScriptDirectory
+
+    assert version == ScriptDirectory.from_config(config).get_current_head()
 
 
 def test_goal_category_is_religious_not_islamic(engine: Engine) -> None:
