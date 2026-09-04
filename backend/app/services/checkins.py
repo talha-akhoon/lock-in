@@ -12,9 +12,11 @@ from app.models.domain import (
     ChallengeParticipant,
     DailyCheckin,
     Goal,
+    GoalProgressEntry,
     TrackingType,
 )
 from app.schemas.domain import CheckinCreate, ProgressCreate
+from app.services import notifications
 from app.services.clock import challenge_today, is_before_start, local_date
 from app.services.goals import add_progress, require_goal
 from app.services.progress import checkin_streak
@@ -68,6 +70,11 @@ def save_checkin(
     """
     assert_checkin_date_allowed(challenge, payload.date, writing=True)
     pre_start = is_before_start(challenge, payload.date)
+    watch_rank = bool(team_id) and not pre_start
+    before_ranks = (
+        notifications.leaderboard_snapshot(db, challenge.id) if watch_rank else None
+    )
+    entries: list[GoalProgressEntry] = []
     with db.begin_nested():
         checkin = db.scalar(
             select(DailyCheckin).where(
@@ -102,14 +109,16 @@ def save_checkin(
                 # the daily-check-in delta shape.
                 fields["numeric_value"] = fields["numeric_delta"]
                 fields["numeric_delta"] = None
-            add_progress(
+            entry = add_progress(
                 db,
                 goal=goal,
                 participant=participant,
                 user_id=user_id,
                 team_id=team_id,
                 payload=ProgressCreate(**fields, entry_date=payload.date),
+                announce_rank=False,
             )
+            entries.append(entry)
             if (
                 pre_start
                 and goal.tracking_type == TrackingType.NUMERIC
@@ -120,6 +129,14 @@ def save_checkin(
                 # starting amount already counts as progress.
                 goal.baseline_value = goal.current_value
         db.flush()
+    if before_ranks is not None and entries:
+        notifications.leaderboard_position_changes(
+            db,
+            challenge_id=challenge.id,
+            before=before_ranks,
+            after=notifications.leaderboard_snapshot(db, challenge.id),
+            cause_key=str(entries[-1].id),
+        )
     return checkin
 
 

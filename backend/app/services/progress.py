@@ -114,6 +114,16 @@ def average_progress(goals: list[Goal]) -> float:
     return round(sum(calculate_goal_progress(goal) for goal in scored) / len(scored), 1)
 
 
+def leaderboard_ranks(
+    members: list[tuple[object, float, str]],
+) -> dict[object, int]:
+    """1-based place, same order as the dashboard: progress desc, then name."""
+    ordered = sorted(members, key=lambda row: (-row[1], row[2]))
+    return {
+        user_id: index + 1 for index, (user_id, _progress, _name) in enumerate(ordered)
+    }
+
+
 def checkin_streak(dates: list[date], today: date) -> int:
     """Consecutive days ending today, or yesterday if today is not logged yet.
 

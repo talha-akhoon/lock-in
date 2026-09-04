@@ -231,6 +231,8 @@ def test_a_gone_subscription_is_dropped(team_setup, make_goal, monkeypatch, db) 
 def test_the_actor_does_not_receive_push_for_their_own_checkin(
     team_setup, make_goal, monkeypatch
 ) -> None:
+    from decimal import Decimal
+
     from app.services.clock import challenge_today
 
     sent: list[dict] = []
@@ -244,6 +246,8 @@ def test_the_actor_does_not_receive_push_for_their_own_checkin(
         "/api/v1/me/push/subscriptions",
         json={"endpoint": ENDPOINT, "keys": KEYS},
     )
+    # Admin stays ahead so this log is not also a rank change for the actor.
+    make_goal(team_setup.admin_participant, current_value=Decimal(120))
     goal = make_goal(team_setup.member_participant)
     today = challenge_today(team_setup.challenge).isoformat()
     team_setup.member_client.post(
@@ -255,6 +259,29 @@ def test_the_actor_does_not_receive_push_for_their_own_checkin(
     )
 
     assert sent == []
+
+
+def test_a_rank_change_sends_web_push(team_setup, make_goal, monkeypatch) -> None:
+    sent: list[dict] = []
+
+    def fake_webpush(**kwargs):
+        sent.append(kwargs)
+        return _Response(201)
+
+    monkeypatch.setattr("app.services.push.webpush", fake_webpush)
+    team_setup.admin_client.post(
+        "/api/v1/me/push/subscriptions",
+        json={"endpoint": ENDPOINT, "keys": KEYS},
+    )
+    make_goal(team_setup.admin_participant)
+    goal = make_goal(team_setup.member_participant)
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "105"},
+    )
+
+    payloads = [item["data"] for item in sent]
+    assert any("You dropped to #2" in data for data in payloads)
 
 
 def test_two_progress_logs_send_two_pushes(team_setup, make_goal, monkeypatch) -> None:

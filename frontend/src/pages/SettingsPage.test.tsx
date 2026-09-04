@@ -92,7 +92,7 @@ describe('settings MCP tokens', () => {
     renderWithAuth(<SettingsPage />, makeAuth())
 
     expect(await screen.findByRole('heading', { name: /on this device/i })).toBeInTheDocument()
-    expect(screen.getByText(/missed check-ins, streaks, pace/i)).toBeInTheDocument()
+    expect(screen.getByText(/leaderboard moves, missed check-ins, streaks, pace/i)).toBeInTheDocument()
     expect(screen.getByText(/not available in this browser/i)).toBeInTheDocument()
     expect(
       await screen.findByRole('heading', { name: /notification types/i }),

@@ -6,6 +6,7 @@ from app.services.progress import (
     average_progress,
     calculate_goal_progress,
     checkin_streak,
+    leaderboard_ranks,
     scored_goals,
 )
 
@@ -127,6 +128,18 @@ def test_optional_goal_does_not_dilute_the_average() -> None:
 def test_average_falls_back_to_optional_when_nothing_is_required() -> None:
     goals = [numeric_goal(current_value=Decimal(120), required=False)]
     assert average_progress(goals) == 100.0
+
+
+def test_leaderboard_ranks_sort_by_progress_then_name() -> None:
+    admin, teammate, zed = "admin", "teammate", "zed"
+    ranks = leaderboard_ranks(
+        [
+            (admin, 40.0, "Admin"),
+            (teammate, 70.0, "Teammate"),
+            (zed, 70.0, "Zed"),
+        ]
+    )
+    assert ranks == {teammate: 1, zed: 2, admin: 3}
 
 
 def test_scored_goals_keeps_only_required() -> None:

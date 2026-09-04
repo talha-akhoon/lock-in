@@ -79,6 +79,12 @@ PREFERENCE_TYPES: tuple[dict[str, str], ...] = (
         "description": "Weekly, if a required goal is off the pace to the forfeit line.",
     },
     {
+        "type": NotificationType.LEADERBOARD_POSITION.value,
+        "group": "You",
+        "label": "Your leaderboard position",
+        "description": "You moved up or down on the team board.",
+    },
+    {
         "type": NotificationType.GOALS_DUE_SOON.value,
         "group": "Deadlines",
         "label": "3 days left to submit goals",
@@ -384,6 +390,73 @@ def member_logged_progress(
         link_path=f"/team/members/{participant.user_id}",
         exclude_user_id=participant.user_id,
     )
+
+
+def leaderboard_position_copy(old_rank: int, new_rank: int) -> tuple[str, str]:
+    """Title and body for a rank change. Lower number is a climb."""
+    if new_rank < old_rank:
+        title = f"You moved up to #{new_rank}"
+    else:
+        title = f"You dropped to #{new_rank}"
+    return title, f"Was #{old_rank}."
+
+
+def leaderboard_snapshot(db: Session, challenge_id: uuid.UUID) -> dict[uuid.UUID, dict]:
+    """Current 1-based ranks plus who has goals, matching the dashboard sort."""
+    from app.services.challenges import active_participants
+    from app.services.goals import load_goal_tree
+    from app.services.progress import leaderboard_ranks, overall_progress
+
+    rows: list[tuple[uuid.UUID, float, str]] = []
+    submitted: dict[uuid.UUID, bool] = {}
+    for participant in active_participants(db, challenge_id):
+        goals = load_goal_tree(db, participant.id)
+        rows.append(
+            (
+                participant.user_id,
+                overall_progress(goals),
+                participant.user.display_name,
+            )
+        )
+        submitted[participant.user_id] = bool(goals)
+    ranks = leaderboard_ranks(rows)
+    return {
+        user_id: {"rank": ranks[user_id], "submitted": submitted[user_id]}
+        for user_id in ranks
+    }
+
+
+def leaderboard_position_changes(
+    db: Session,
+    *,
+    challenge_id: uuid.UUID,
+    before: dict[uuid.UUID, dict],
+    after: dict[uuid.UUID, dict],
+    cause_key: str,
+) -> None:
+    """Ping each member whose visible dashboard place actually moved."""
+    for user_id, place in after.items():
+        previous = before.get(user_id)
+        if previous is None:
+            continue
+        if not place["submitted"]:
+            # Unsubmitted cards hide the number, so a shuffle is not a place change.
+            continue
+        old_rank = previous["rank"]
+        new_rank = place["rank"]
+        if old_rank == new_rank:
+            continue
+        title, body = leaderboard_position_copy(old_rank, new_rank)
+        notify(
+            db,
+            user_id=user_id,
+            challenge_id=challenge_id,
+            kind=NotificationType.LEADERBOARD_POSITION,
+            dedupe_key=f"rank:{challenge_id}:{user_id}:{old_rank}:{new_rank}:{cause_key}",
+            title=title,
+            body=body,
+            link_path="/dashboard",
+        )
 
 
 def member_joined(
