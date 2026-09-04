@@ -36,7 +36,8 @@ the commitment, the daily record, and the reckoning at the end.
 6. **Starting point.** You set where you are now on each goal when you write
    it. If the challenge has not started yet, Check-In also lets you update
    that snapshot.
-7. **Check in.** Each day you update the goals that moved. Streaks and a
+7. **Check in.** Each day you update the goals that moved. You can check in
+   more than once; later saves add to or update that day's record. Streaks and a
    heatmap use the challenge's own timezone. Each log pings teammates in the
    app and, if they turned on push, on their phone. The banner shows how much
    they logged — six applications, not the target of a hundred — so one more
@@ -91,7 +92,8 @@ the commitment, the daily record, and the reckoning at the end.
   running total that amount already counts; on a number-to-target goal it is
   the line progress is measured from. Before kick-off you can still update
   it from Check-In.
-- Date-stamped check-ins, including a note.
+- Date-stamped check-ins, including a note. You can check in more than once
+  the same day; later saves add to or update that day's record.
 - Per-member heatmap and streak on the profile.
 - Team dashboard with everyone's progress (private titles redacted).
 - Activity feed of recent updates.
