@@ -233,9 +233,14 @@ export function GoalForm({
                 : 'Optional — no forfeit, and kept out of your percentage'}
             </p>
           ) : (
-            <label className="checkbox">
-              <input type="checkbox" {...register('required')} /> Required to avoid the forfeit
-            </label>
+            <div>
+              <label className="checkbox">
+                <input type="checkbox" {...register('required')} /> Required to avoid the forfeit
+              </label>
+              <span className="hint">
+                Untick for optional — no forfeit, and kept out of your percentage.
+              </span>
+            </div>
           )}
           <label>
             Visibility

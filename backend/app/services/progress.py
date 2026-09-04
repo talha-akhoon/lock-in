@@ -72,6 +72,41 @@ def goal_is_complete(goal: Goal) -> bool:
     return calculate_goal_progress(goal) >= 100
 
 
+def category_progress(goals: list[Goal]) -> dict[str, float]:
+    """Mean progress per category over required goals, private ones included.
+
+    Optional goals are left out of each category's score, matching how a
+    parent scores its steps. An all-optional category still reports, so a
+    category the member created does not vanish from the dashboard.
+    """
+    buckets: dict[str, list[Goal]] = {}
+    for goal in goals:
+        buckets.setdefault(goal.category.value, []).append(goal)
+    return {
+        category: round(
+            sum(calculate_goal_progress(goal) for goal in scored) / len(scored),
+            1,
+        )
+        for category, members in buckets.items()
+        if (scored := scored_goals(members))
+    }
+
+
+def overall_progress(goals: list[Goal]) -> float:
+    """Mean of category scores that contain a required goal.
+
+    An all-optional category still appears on the dashboard (see
+    category_progress) but must not dilute the headline number. If nothing
+    is required, fall back to averaging what is there so an all-optional
+    board is not a silent 0%.
+    """
+    required = [goal for goal in goals if goal.required]
+    categories = category_progress(required or goals)
+    if not categories:
+        return 0.0
+    return round(sum(categories.values()) / len(categories), 1)
+
+
 def average_progress(goals: list[Goal]) -> float:
     if not goals:
         return 0.0

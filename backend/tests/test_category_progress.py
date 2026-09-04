@@ -44,12 +44,22 @@ def test_optional_goal_does_not_lower_overall() -> None:
 
 
 def test_category_of_only_optional_goals_still_reports() -> None:
-    """Falling back beats hiding a category the member deliberately created."""
+    """The category stays visible; the headline must not absorb it."""
     goals = [
         goal(GoalCategory.PHYSICAL, 80),
         goal(GoalCategory.PERSONAL, 30, required=False),
     ]
     assert category_progress(goals) == {"PHYSICAL": 80.0, "PERSONAL": 30.0}
+    assert overall_progress(goals) == 80.0
+
+
+def test_all_optional_board_still_reports_overall() -> None:
+    """Nothing required: fall back to averaging what is there, not a silent 0%."""
+    goals = [
+        goal(GoalCategory.PHYSICAL, 40, required=False),
+        goal(GoalCategory.CAREER, 20, required=False),
+    ]
+    assert overall_progress(goals) == 30.0
 
 
 def test_completing_an_optional_goal_is_not_punished_either() -> None:

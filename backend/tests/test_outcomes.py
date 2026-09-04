@@ -124,6 +124,52 @@ def test_submitting_no_goals_counts_as_a_failure(
     assert absent["required_goals_total"] == 0
 
 
+def test_archived_progress_matches_the_dashboard_and_ignores_optional(
+    team_setup, make_goal, finished
+) -> None:
+    """The recorded figure is the dashboard overall, not a flat mean of roots.
+
+    Two PHYSICAL goals at 100% and 50% plus a CAREER goal at 0% is 37.5% on
+    the dashboard (mean of 75 and 0). A flat mean of those three roots would
+    be 50%. An unfinished optional must not pull either number down.
+    """
+    from decimal import Decimal
+
+    from app.models.domain import GoalCategory
+
+    make_goal(team_setup.admin_participant, current_value=Decimal(120))
+    make_goal(
+        team_setup.admin_participant,
+        title="Squat 120kg",
+        current_value=Decimal(105),
+    )
+    make_goal(
+        team_setup.admin_participant,
+        title="Ship the app",
+        category=GoalCategory.CAREER,
+        current_value=Decimal(90),
+    )
+    make_goal(
+        team_setup.admin_participant,
+        title="Stretch gym",
+        required=False,
+        current_value=Decimal(90),
+    )
+    make_goal(team_setup.member_participant, current_value=Decimal(120))
+    finished()
+
+    body = team_setup.admin_client.get(
+        f"/api/v1/challenges/{team_setup.challenge.id}/outcomes"
+    ).json()
+    row = next(
+        item for item in body["outcomes"] if item["user_id"] == str(team_setup.admin.id)
+    )
+
+    assert float(row["final_progress_percentage"]) == 37.5
+    assert row["optional_goals_total"] == 1
+    assert row["optional_goals_completed"] == 0
+
+
 def test_optional_goals_do_not_decide_the_outcome(
     team_setup, make_goal, finished, db
 ) -> None:

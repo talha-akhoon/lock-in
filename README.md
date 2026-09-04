@@ -72,6 +72,10 @@ the commitment, the daily record, and the reckoning at the end.
     sessions). Not for a lift, weight, or time you re-measure.
   - **Set a percentage yourself** — type 0–100 when you think you have
     moved (a side project you cannot count cleanly).
+- **Required vs optional** — required goals decide the forfeit and are what
+  your percentage is measured over. Optional goals are tracked and shown but
+  left out of that number, including when they sit alone in a category: the
+  category still appears, the headline does not drop.
 - **Steps** — optional one-level sub-goals. You check in on the steps; the
   parent averages its required children, the same rule categories use. Use
   this when the work is a few named finish-lines, not when you already have a
