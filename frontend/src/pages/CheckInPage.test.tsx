@@ -195,7 +195,9 @@ describe('check-in form', () => {
     renderWithAuth(<CheckInPage />, makeAuth())
     expect(await screen.findByDisplayValue('Already logged')).toBeInTheDocument()
     expect(screen.getByDisplayValue('84')).toBeInTheDocument()
-    expect(screen.getByText(/saving again updates it/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/you can check in again\. this save adds to or updates today's record/i),
+    ).toBeInTheDocument()
   })
 
   it('shows the streak from the API', async () => {

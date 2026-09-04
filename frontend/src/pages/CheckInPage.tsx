@@ -144,7 +144,7 @@ export function CheckInPage() {
             <div className="hint">
               {preStart
                 ? 'You already saved a starting point. Saving again updates it.'
-                : 'You already checked in on this date. Saving again updates it.'}
+                : "You can check in again. This save adds to or updates today's record."}
             </div>
           )}
           {CATEGORY_ORDER.map((category) => {
