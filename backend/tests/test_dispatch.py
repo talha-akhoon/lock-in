@@ -246,6 +246,7 @@ def test_preferences_round_trip(team_setup) -> None:
     types = [item["type"] for item in body["types"]]
     assert "CHECKIN_DUE" in types
     assert "MEMBER_CHECKED_IN" in types
+    assert "LEADERBOARD_POSITION" in types
     assert body["muted_types"] == []
 
     updated = team_setup.admin_client.put(

@@ -1,4 +1,4 @@
-"""All eight notification types, and the dedupe that makes lazy generation safe."""
+"""Deadline, team, and rank notifications, plus the dedupe that makes lazy generation safe."""
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -7,7 +7,10 @@ from types import SimpleNamespace
 import pytest
 
 from app.models.domain import Challenge, ChallengeParticipant, Notification
-from app.services.notifications import progress_log_body
+from app.services.notifications import (
+    leaderboard_position_copy,
+    progress_log_body,
+)
 
 
 def test_progress_body_leads_with_the_logged_amount() -> None:
@@ -54,6 +57,14 @@ def test_progress_body_keeps_a_minus_sign_on_a_drop() -> None:
         manual_percentage=None,
     )
     assert progress_log_body(goal, entry) == "-0.5 % on Body fat to 12%"
+
+
+def test_leaderboard_copy_says_moved_up_when_the_number_falls() -> None:
+    assert leaderboard_position_copy(3, 1) == ("You moved up to #1", "Was #3.")
+
+
+def test_leaderboard_copy_says_dropped_when_the_number_rises() -> None:
+    assert leaderboard_position_copy(1, 2) == ("You dropped to #2", "Was #1.")
 
 
 def test_progress_body_falls_back_to_the_title_for_a_note_only_log() -> None:
@@ -322,6 +333,8 @@ def test_a_starting_point_snapshot_does_not_announce_progress(
     assert response.status_code == 200
 
     assert "MEMBER_CHECKED_IN" not in types_for(team_setup.admin_client)
+    assert "LEADERBOARD_POSITION" not in types_for(team_setup.admin_client)
+    assert "LEADERBOARD_POSITION" not in types_for(team_setup.member_client)
 
 
 def test_repeated_reads_do_not_duplicate_notifications(
@@ -381,3 +394,128 @@ def test_another_users_notification_cannot_be_marked_read(
         f"/api/v1/me/notifications/{mine['id']}/read"
     )
     assert response.status_code == 404
+
+
+def _rank_rows(client) -> list[dict]:
+    body = client.get("/api/v1/me/notifications").json()
+    return [
+        row for row in body["notifications"] if row["type"] == "LEADERBOARD_POSITION"
+    ]
+
+
+def test_overtaking_a_teammate_notifies_both_of_the_new_places(
+    team_setup, make_goal
+) -> None:
+    make_goal(team_setup.admin_participant)
+    goal = make_goal(team_setup.member_participant)
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "105"},
+    )
+
+    admin = _rank_rows(team_setup.admin_client)
+    member = _rank_rows(team_setup.member_client)
+
+    assert len(admin) == 1
+    assert admin[0]["title"] == "You dropped to #2"
+    assert admin[0]["body"] == "Was #1."
+    assert admin[0]["link_path"] == "/dashboard"
+
+    assert len(member) == 1
+    assert member[0]["title"] == "You moved up to #1"
+    assert member[0]["body"] == "Was #2."
+
+
+def test_a_log_that_does_not_change_places_is_silent(team_setup, make_goal) -> None:
+    make_goal(team_setup.admin_participant, current_value=Decimal(120))
+    goal = make_goal(team_setup.member_participant)
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "91"},
+    )
+
+    assert _rank_rows(team_setup.admin_client) == []
+    assert _rank_rows(team_setup.member_client) == []
+
+
+def test_an_unsubmitted_member_is_not_told_about_a_hidden_place(
+    team_setup, make_goal
+) -> None:
+    """Admin has no goals, so the dashboard hides their number."""
+    goal = make_goal(team_setup.member_participant)
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "105"},
+    )
+
+    assert _rank_rows(team_setup.admin_client) == []
+    member = _rank_rows(team_setup.member_client)
+    assert len(member) == 1
+    assert member[0]["title"] == "You moved up to #1"
+
+
+def test_a_later_overtake_notifies_again(team_setup, make_goal) -> None:
+    make_goal(team_setup.admin_participant, current_value=Decimal(105))
+    goal = make_goal(team_setup.member_participant)
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "91"},
+    )
+    assert _rank_rows(team_setup.member_client) == []
+
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "120"},
+    )
+    member = _rank_rows(team_setup.member_client)
+    assert [row["title"] for row in member] == ["You moved up to #1"]
+
+
+def test_a_checkin_that_climbs_twice_notifies_the_final_place_once(
+    team_setup, make_user, make_member, make_participant, make_goal, client_factory
+) -> None:
+    """Two updates in one save should not send #3→#2 and then #2→#1."""
+    zed = make_user("Zed")
+    make_member(team_setup.team, zed)
+    zed_participant = make_participant(team_setup.challenge, zed)
+    zed_client = client_factory(zed.id)
+
+    make_goal(team_setup.admin_participant, current_value=Decimal(102))
+    make_goal(team_setup.member_participant, current_value=Decimal(111))
+    first = make_goal(zed_participant, title="Deadlift")
+    second = make_goal(zed_participant, title="Squat")
+
+    today = zed_client.get("/api/v1/me/checkins").json()["today"]
+    response = zed_client.post(
+        "/api/v1/me/checkins",
+        json={
+            "date": today,
+            "updates": [
+                {"goal_id": str(first.id), "numeric_value": "120"},
+                {"goal_id": str(second.id), "numeric_value": "120"},
+            ],
+        },
+    )
+    assert response.status_code == 200
+
+    ranks = _rank_rows(zed_client)
+    assert [row["title"] for row in ranks] == ["You moved up to #1"]
+    assert ranks[0]["body"] == "Was #3."
+
+
+def test_muting_leaderboard_position_skips_the_bell(team_setup, make_goal, db) -> None:
+    from app.models.domain import User
+
+    admin = db.get(User, team_setup.admin.id)
+    admin.muted_notification_types = ["LEADERBOARD_POSITION"]
+    db.commit()
+
+    make_goal(team_setup.admin_participant)
+    goal = make_goal(team_setup.member_participant)
+    team_setup.member_client.post(
+        f"/api/v1/goals/{goal.id}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "105"},
+    )
+
+    assert _rank_rows(team_setup.admin_client) == []
+    assert _rank_rows(team_setup.member_client)[0]["title"] == "You moved up to #1"

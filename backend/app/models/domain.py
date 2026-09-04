@@ -97,6 +97,7 @@ class NotificationType(str, enum.Enum):
     STREAK_AT_RISK = "STREAK_AT_RISK"
     MEMBER_QUIET = "MEMBER_QUIET"
     PACE_BEHIND = "PACE_BEHIND"
+    LEADERBOARD_POSITION = "LEADERBOARD_POSITION"
 
 
 class TimestampMixin:

@@ -316,10 +316,18 @@ def add_progress(
     user_id: uuid.UUID,
     payload: ProgressCreate,
     team_id: uuid.UUID | None = None,
+    announce_rank: bool = True,
 ) -> GoalProgressEntry:
     data = payload.model_dump()
     evidence = data.pop("evidence_url")
     previous_value = goal.current_value
+    announce = bool(team_id) and not is_before_start(participant.challenge)
+    watch_rank = announce and announce_rank
+    before_ranks = (
+        notifications.leaderboard_snapshot(db, participant.challenge_id)
+        if watch_rank
+        else None
+    )
     entry = GoalProgressEntry(
         goal_id=goal.id,
         user_id=user_id,
@@ -343,7 +351,7 @@ def add_progress(
     db.flush()
     cascade_completion(db, goal)
     newly_complete = bool(goal.completed_at) and not was_complete
-    if team_id and not is_before_start(participant.challenge):
+    if announce and team_id is not None:
         # One banner per save: a finishing log is "completed", not completed+progress.
         if newly_complete:
             notifications.member_completed_goal(
@@ -357,6 +365,14 @@ def add_progress(
                 team_id=team_id,
                 entry=entry,
                 previous_value=previous_value,
+            )
+        if before_ranks is not None:
+            notifications.leaderboard_position_changes(
+                db,
+                challenge_id=participant.challenge_id,
+                before=before_ranks,
+                after=notifications.leaderboard_snapshot(db, participant.challenge_id),
+                cause_key=str(entry.id),
             )
     return entry
 

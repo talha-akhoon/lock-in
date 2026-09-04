@@ -185,6 +185,7 @@ export type NotificationType =
   | 'STREAK_AT_RISK'
   | 'MEMBER_QUIET'
   | 'PACE_BEHIND'
+  | 'LEADERBOARD_POSITION'
 
 export type NotificationPreferenceType = {
   type: NotificationType
