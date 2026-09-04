@@ -1,6 +1,7 @@
 """Challenge lifecycle, final scoring and forfeit calculation."""
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -68,23 +69,30 @@ def assert_no_open_challenge(db: Session, team_id: uuid.UUID) -> None:
         )
 
 
-def derived_status(challenge: Challenge) -> ChallengeStatus:
-    now = utcnow()
-    if now >= as_utc(challenge.end_at):
+def derived_status(
+    challenge: Challenge, now: datetime | None = None
+) -> ChallengeStatus:
+    moment = as_utc(now or utcnow())
+    if moment >= as_utc(challenge.end_at):
         return ChallengeStatus.COMPLETED
-    if now < as_utc(challenge.start_at):
+    if moment < as_utc(challenge.start_at):
         return ChallengeStatus.UPCOMING
     return ChallengeStatus.ACTIVE
 
 
-def sync_challenge_status(db: Session, challenge: Challenge) -> Challenge:
+def sync_challenge_status(
+    db: Session, challenge: Challenge, now: datetime | None = None
+) -> Challenge:
     """Advance UPCOMING -> ACTIVE -> COMPLETED as time passes.
 
     DRAFT is left alone: it is an editorial state an admin exits deliberately.
+    Callers that already have a clock (the evening dispatch job) pass it in
+    so a historical `now` cannot complete a challenge that is still running
+    at that moment.
     """
     if challenge.status == ChallengeStatus.DRAFT:
         return challenge
-    target = derived_status(challenge)
+    target = derived_status(challenge, now)
     if challenge.status != target:
         challenge.status = target
         if target == ChallengeStatus.COMPLETED:

@@ -228,7 +228,7 @@ def _load_participants(db: Session, now: datetime) -> list[ChallengeParticipant]
         )
     ).all()
     for challenge in open_challenges:
-        sync_challenge_status(db, challenge)
+        sync_challenge_status(db, challenge, now=now)
 
     cutoff = now - timedelta(days=2)
     return list(
