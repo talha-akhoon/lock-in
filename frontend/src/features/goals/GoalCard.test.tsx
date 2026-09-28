@@ -113,8 +113,8 @@ describe('GoalCard step reorder', () => {
     renderWithProviders(<GoalCard goal={parent} />)
 
     const handle = screen.getByRole('button', { name: /reorder finish the api/i })
-    const firstRow = handle.closest('.subgoal-group')
-    const secondRow = screen.getByRole('button', { name: /reorder finish the ui/i }).closest('.subgoal-group')
+    const firstRow = handle.closest('.subgoal')
+    const secondRow = screen.getByRole('button', { name: /reorder finish the ui/i }).closest('.subgoal')
     expect(firstRow).toBeTruthy()
     expect(secondRow).toBeTruthy()
     stubRect(firstRow!, 0)
@@ -129,6 +129,43 @@ describe('GoalCard step reorder', () => {
     )
     expect(fetchMock.sent(`PATCH /goals/${parent.id}/children/order`)[0].body).toEqual({
       ordered_ids: [parent.children[1].id, parent.children[0].id],
+    })
+  })
+
+  it('drops against the step row, not the nested sub-steps block', async () => {
+    const first = makeGoal({
+      title: 'Finish the API',
+      children: [makeGoal({ title: 'Write the endpoints' }), makeGoal({ title: 'Write the tests' })],
+    })
+    const second = makeGoal({ title: 'Finish the UI' })
+    const parent = makeGoal({ title: 'Ship the app', children: [first, second] })
+    const fetchMock = mockFetch({
+      [`PATCH /goals/${parent.id}/children/order`]: parent,
+    })
+    renderWithProviders(<GoalCard goal={parent} />)
+
+    const handle = screen.getByRole('button', { name: /reorder finish the api/i })
+    const secondHandle = screen.getByRole('button', { name: /reorder finish the ui/i })
+    const firstGroup = handle.closest('.subgoal-group')
+    const secondGroup = secondHandle.closest('.subgoal-group')
+    const firstRow = handle.closest('.subgoal')
+    const secondRow = secondHandle.closest('.subgoal')
+    expect(firstGroup && secondGroup && firstRow && secondRow).toBeTruthy()
+    // A tall group would swallow the neighbour if drop used it; the row must win.
+    stubRect(firstGroup!, 0, 200)
+    stubRect(secondGroup!, 200, 40)
+    stubRect(firstRow!, 0, 40)
+    stubRect(secondRow!, 40, 40)
+
+    fireEvent.pointerDown(handle, { pointerId: 1, clientY: 20, button: 0 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientY: 70 })
+    fireEvent.pointerUp(window, { pointerId: 1, clientY: 70 })
+
+    await waitFor(() =>
+      expect(fetchMock.sent(`PATCH /goals/${parent.id}/children/order`)).toHaveLength(1),
+    )
+    expect(fetchMock.sent(`PATCH /goals/${parent.id}/children/order`)[0].body).toEqual({
+      ordered_ids: [second.id, first.id],
     })
   })
 

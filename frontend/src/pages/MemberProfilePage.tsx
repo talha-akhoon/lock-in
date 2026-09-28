@@ -10,6 +10,7 @@ import {
   Pill,
   Progress,
 } from '../components/primitives'
+import { GoalSteps } from '../features/goals/GoalSteps'
 import { useMemberProfile } from '../hooks/queries'
 import { CATEGORY_META, CATEGORY_ORDER } from '../lib/categories'
 import { formatDate, goalValueLabel } from '../lib/format'
@@ -157,26 +158,9 @@ export function MemberProfilePage() {
                       {goal.required ? 'Required' : 'Optional'}
                     </Pill>
                   </div>
-                  {goal.children.map((child) => (
-                    <div className="subgoal-group" key={child.id}>
-                      <div className="subgoal">
-                        <span>{child.title}</span>
-                        <Progress value={child.progress_percentage} tone="muted" />
-                        <b>{Math.round(child.progress_percentage)}%</b>
-                      </div>
-                      {child.children.length > 0 && (
-                        <div className="subgoal-children">
-                          {child.children.map((subStep) => (
-                            <div className="subgoal" key={subStep.id}>
-                              <span>{subStep.title}</span>
-                              <Progress value={subStep.progress_percentage} tone="muted" />
-                              <b>{Math.round(subStep.progress_percentage)}%</b>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {goal.children.length > 0 && (
+                    <GoalSteps parent={goal} readOnly linkTitles={data.is_self} />
+                  )}
                 </article>
               ))}
             </section>

@@ -174,6 +174,35 @@ describe('check-in form', () => {
     expect(screen.getByText('Finish the book')).toBeInTheDocument()
   })
 
+  it('asks for sub-steps under a step, not the step itself', async () => {
+    const subStep = makeGoal({
+      title: 'Al-Mujadila',
+      tracking_type: 'MILESTONE',
+      parent_goal_id: 'step',
+    })
+    const step = makeGoal({
+      id: 'step',
+      title: 'Juz 28',
+      parent_goal_id: 'goal',
+      children: [subStep],
+    })
+    const sibling = makeGoal({
+      title: 'Juz 29',
+      tracking_type: 'MILESTONE',
+      parent_goal_id: 'goal',
+    })
+    const goal = makeGoal({ id: 'goal', title: 'Revise 5 Juz', children: [step, sibling] })
+    stub([goal])
+
+    renderWithAuth(<CheckInPage />, makeAuth())
+    expect(await screen.findByLabelText('Al-Mujadila')).toBeInTheDocument()
+    expect(screen.getByLabelText('Juz 29')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Juz 28')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Revise 5 Juz')).not.toBeInTheDocument()
+    expect(screen.getByText('Juz 28')).toBeInTheDocument()
+    expect(screen.getByText('Revise 5 Juz')).toBeInTheDocument()
+  })
+
   it('prefills an existing day and says it will be updated', async () => {
     const numeric = makeGoal({
       title: 'Bodyweight',

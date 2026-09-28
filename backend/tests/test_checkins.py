@@ -452,7 +452,7 @@ def test_finishing_every_sub_step_completes_the_step_and_the_goal(
     )
     assert response.status_code == 422
 
-    team_setup.admin_client.post(
+    saved = team_setup.admin_client.post(
         "/api/v1/me/checkins",
         json={
             "date": today,
@@ -462,6 +462,7 @@ def test_finishing_every_sub_step_completes_the_step_and_the_goal(
             ],
         },
     )
+    assert saved.status_code == 200, saved.text
 
     db.expire_all()
     assert db.get(Goal, step.id).completed_at is not None

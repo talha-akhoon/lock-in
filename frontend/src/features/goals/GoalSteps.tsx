@@ -14,6 +14,7 @@ export function GoalSteps({
   onDelete,
   onAddChild,
   linkTitles,
+  readOnly,
 }: {
   parent: Goal
   canDelete?: boolean
@@ -21,11 +22,14 @@ export function GoalSteps({
   // Offered on a goal's steps only: a sub-step cannot hold steps of its own.
   onAddChild?: (goal: Goal) => void
   linkTitles?: boolean
+  // Teammate profile (and any other viewer) must not get drag handles.
+  readOnly?: boolean
 }) {
   const reorder = useReorderGoalSteps()
   const steps = parent.children
-  const canReorder = steps.length > 1
-  const canAddSubStep = Boolean(onAddChild) && !parent.parent_goal_id
+  const canReorder = steps.length > 1 && !readOnly
+  const canAddSubStep = Boolean(onAddChild) && !parent.parent_goal_id && !readOnly
+  const canRemove = Boolean(canDelete && onDelete) && !readOnly
   const [dragId, setDragId] = useState<string | null>(null)
   const [previewIds, setPreviewIds] = useState<string[] | null>(null)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
@@ -108,14 +112,7 @@ export function GoalSteps({
   return (
     <>
       {visible.map((child) => (
-        <div
-          className="subgoal-group"
-          key={child.id}
-          ref={(node) => {
-            if (node) rowRefs.current.set(child.id, node)
-            else rowRefs.current.delete(child.id)
-          }}
-        >
+        <div className="subgoal-group" key={child.id}>
           <div
             className={[
               'subgoal',
@@ -124,6 +121,10 @@ export function GoalSteps({
             ]
               .filter(Boolean)
               .join(' ')}
+            ref={(node) => {
+              if (node) rowRefs.current.set(child.id, node)
+              else rowRefs.current.delete(child.id)
+            }}
           >
             {canReorder && (
               <button
@@ -145,7 +146,7 @@ export function GoalSteps({
             </span>
             <Progress value={child.progress_percentage} tone="muted" />
             <b>{Math.round(child.progress_percentage)}%</b>
-            {((canAddSubStep && onAddChild) || (canDelete && onDelete)) && (
+            {(canAddSubStep || canRemove) && (
               <div className="subgoal-actions">
                 {canAddSubStep && onAddChild && (
                   <button
@@ -157,7 +158,7 @@ export function GoalSteps({
                     <Plus />
                   </button>
                 )}
-                {canDelete && onDelete && (
+                {canRemove && onDelete && (
                   <button
                     type="button"
                     className="icon-button tiny"
@@ -177,6 +178,7 @@ export function GoalSteps({
                 canDelete={canDelete}
                 onDelete={onDelete}
                 linkTitles={linkTitles}
+                readOnly={readOnly}
               />
             </div>
           )}
