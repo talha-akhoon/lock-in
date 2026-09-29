@@ -7,7 +7,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { applyCheckinUpdates } from '../features/checkin/payload'
-import { orderedChildren } from '../features/goals/stepOrder'
+import { reorderedInTree } from '../features/goals/stepOrder'
 import { api, del, patch, post, put } from '../lib/api'
 import type {
   ActivityEntry,
@@ -259,38 +259,40 @@ export function useReorderGoalSteps() {
     mutationFn: ({ parentId, orderedIds }: { parentId: string; orderedIds: string[] }) =>
       patch<Goal>(`/goals/${parentId}/children/order`, { ordered_ids: orderedIds }),
     onMutate: async ({ parentId, orderedIds }) => {
+      // The parent can be a goal or one of its steps, and a step's sub-steps
+      // also render on the goal's detail page, so rewrite every cached tree
+      // rather than only the entry keyed by `parentId`.
       await Promise.all([
         client.cancelQueries({ queryKey: keys.goals }),
-        client.cancelQueries({ queryKey: keys.goalHistory(parentId) }),
+        client.cancelQueries({ queryKey: ['goal-history'] }),
       ])
       const previousGoals = client.getQueryData<MyGoals>(keys.goals)
-      const previousHistory = client.getQueryData<GoalHistory>(keys.goalHistory(parentId))
+      const previousHistories = client.getQueriesData<GoalHistory>({ queryKey: ['goal-history'] })
       if (previousGoals) {
         client.setQueryData<MyGoals>(keys.goals, {
           ...previousGoals,
-          goals: previousGoals.goals.map((goal) =>
-            goal.id === parentId ? orderedChildren(goal, orderedIds) : goal,
-          ),
+          goals: previousGoals.goals.map((goal) => reorderedInTree(goal, parentId, orderedIds)),
         })
       }
-      if (previousHistory) {
-        client.setQueryData<GoalHistory>(keys.goalHistory(parentId), {
-          ...previousHistory,
-          goal: orderedChildren(previousHistory.goal, orderedIds),
+      for (const [queryKey, history] of previousHistories) {
+        if (!history) continue
+        client.setQueryData<GoalHistory>(queryKey, {
+          ...history,
+          goal: reorderedInTree(history.goal, parentId, orderedIds),
         })
       }
-      return { previousGoals, previousHistory, parentId }
+      return { previousGoals, previousHistories }
     },
     onError: (_error, _variables, context) => {
       if (!context) return
       if (context.previousGoals) client.setQueryData(keys.goals, context.previousGoals)
-      if (context.previousHistory) {
-        client.setQueryData(keys.goalHistory(context.parentId), context.previousHistory)
+      for (const [queryKey, history] of context.previousHistories) {
+        client.setQueryData(queryKey, history)
       }
     },
     onSettled: (_data, _error, variables) => {
       invalidate()
-      client.invalidateQueries({ queryKey: keys.goalHistory(variables.parentId) })
+      client.invalidateQueries({ queryKey: ['goal-history'] })
       client.invalidateQueries({ queryKey: keys.goal(variables.parentId) })
     },
   })

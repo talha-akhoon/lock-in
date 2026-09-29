@@ -4,11 +4,12 @@ import type { CheckinPayload, CheckinUpdate, Goal } from '../../lib/types'
 export type CheckinFormState = Record<string, string | boolean>
 
 /**
- * Parent goals derive their progress from children, and the API rejects direct
- * updates to them, so only leaves are ever checked in against.
+ * Parent goals and steps with sub-steps derive their progress from children,
+ * and the API rejects direct updates to them, so only leaves are ever checked
+ * in against.
  */
 export function checkinTargets(goals: Goal[]): Goal[] {
-  return goals.flatMap((goal) => (goal.children.length ? goal.children : [goal]))
+  return goals.flatMap((goal) => (goal.children.length ? checkinTargets(goal.children) : [goal]))
 }
 
 function isTicked(raw: string | boolean | undefined): boolean {

@@ -45,6 +45,10 @@ IMMUTABLE_GOAL_FIELDS = frozenset(
     }
 )
 
+# A goal, its steps, and sub-steps under a step. Deeper than that and a daily
+# check-in becomes a tree walk.
+MAX_STEP_DEPTH = 2
+
 GOALS_LOCKED = {"code": "GOALS_LOCKED", "message": "Your commitment is locked"}
 CHALLENGE_OVER = {"code": "CHALLENGE_OVER", "message": "This challenge has ended"}
 # The first child switches a parent from its own tracking to the mean of its
@@ -116,11 +120,20 @@ def sync_participant_lock(
     return locked
 
 
+def goal_depth(goal: Goal) -> int:
+    """0 for a top-level goal, 1 for a step, 2 for a sub-step."""
+    depth = 0
+    while goal.parent is not None:
+        goal = goal.parent
+        depth += 1
+    return depth
+
+
 def load_goal_tree(db: Session, participant_id: uuid.UUID) -> list[Goal]:
     return list(
         db.scalars(
             select(Goal)
-            .options(selectinload(Goal.children))
+            .options(selectinload(Goal.children).selectinload(Goal.children))
             .where(
                 Goal.challenge_participant_id == participant_id,
                 Goal.parent_goal_id.is_(None),
@@ -153,9 +166,10 @@ def create_goal(
         parent = db.get(Goal, payload.parent_goal_id)
         if not parent or parent.challenge_participant_id != participant.id:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Parent goal not found")
-        if parent.parent_goal_id:
+        if goal_depth(parent) >= MAX_STEP_DEPTH:
             raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_CONTENT, "One nesting level only"
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "Steps nest two levels deep at most",
             )
         # Adding a *further* step to a parent that already groups children only
         # raises the bar. Adding the *first* step to a parent that has banked
@@ -224,13 +238,9 @@ def reorder_children(
 
     `sort_order` is a display preference, so this stays allowed after the lock.
     The list must be a permutation of the current children — no adding, dropping
-    or promoting a sibling from another goal.
+    or promoting a sibling from another goal. A step with sub-steps reorders
+    them the same way.
     """
-    if parent.parent_goal_id is not None:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Only a top-level goal has steps to reorder",
-        )
     children = list(parent.children)
     child_ids = {child.id for child in children}
     if not child_ids:
@@ -294,7 +304,8 @@ def cascade_completion(db: Session, goal: Goal) -> None:
 
     Progress is computed from children on read, but `completed_at` is what the
     dashboard counts and what the final outcome is scored against, so it has to
-    be written too.
+    be written too — on every ancestor, since a sub-step can finish a step that
+    in turn finishes the goal.
     """
     if not goal.parent_goal_id:
         return
@@ -306,6 +317,7 @@ def cascade_completion(db: Session, goal: Goal) -> None:
         parent.completed_at = parent.completed_at or utcnow()
     else:
         parent.completed_at = None
+    cascade_completion(db, parent)
 
 
 def add_progress(

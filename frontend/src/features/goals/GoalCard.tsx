@@ -54,7 +54,12 @@ export function GoalCard({
       </div>
 
       {goal.children.length > 0 && (
-        <GoalSteps parent={goal} canDelete={Boolean(editable && onDelete)} onDelete={onDelete} />
+        <GoalSteps
+          parent={goal}
+          canDelete={Boolean(editable && onDelete)}
+          onDelete={onDelete}
+          onAddChild={canAddChild ? onAddChild : undefined}
+        />
       )}
 
       <footer className="goal-actions">

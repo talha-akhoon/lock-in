@@ -114,6 +114,15 @@ describe('check-in payload', () => {
     ])
   })
 
+  it('targets sub-steps instead of a step that has them', () => {
+    const subStep = makeGoal({ tracking_type: 'MILESTONE', parent_goal_id: 'step' })
+    const step = makeGoal({ id: 'step', parent_goal_id: 'goal', children: [subStep] })
+    const plain = makeGoal({ tracking_type: 'MILESTONE', parent_goal_id: 'goal' })
+    const goal = makeGoal({ id: 'goal', children: [step, plain] })
+
+    expect(checkinTargets([goal])).toEqual([subStep, plain])
+  })
+
   it('trims the note and nulls it when empty', () => {
     const payload = buildCheckinPayload([], {}, { date: '2026-01-05', note: '   ' })
     expect(payload).toEqual({ date: '2026-01-05', note: null, updates: [] })

@@ -60,6 +60,30 @@ describe('member profile privacy', () => {
     render(makeMemberProfile({ is_self: true, goals: [makeGoal({ title: 'Deadlift 120kg' })] }))
     expect((await screen.findByText('Deadlift 120kg')).closest('a')).not.toBeNull()
   })
+
+  it('nests a teammate’s sub-steps without offering reorder or add', async () => {
+    const subStep = makeGoal({ title: 'Al-Mujadila', parent_goal_id: 'step' })
+    const first = makeGoal({
+      id: 'step',
+      title: 'Juz 28',
+      parent_goal_id: 'goal',
+      children: [subStep],
+    })
+    const second = makeGoal({ title: 'Juz 29', parent_goal_id: 'goal' })
+    render(
+      makeMemberProfile({
+        is_self: false,
+        goals: [makeGoal({ id: 'goal', title: 'Revise 5 Juz', children: [first, second] })],
+      }),
+    )
+
+    expect(await screen.findByText('Juz 28')).toBeInTheDocument()
+    expect(screen.getByText('Al-Mujadila').closest('.subgoal-children')).not.toBeNull()
+    expect(screen.getByText('Juz 29')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /reorder /i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /add a sub-step/i })).not.toBeInTheDocument()
+    expect(screen.getByText('Al-Mujadila').closest('a')).toBeNull()
+  })
 })
 
 describe('member profile states', () => {

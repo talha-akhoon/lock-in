@@ -64,28 +64,26 @@ def goal_tree(goals: list[Goal], *, viewer_is_owner: bool) -> dict:
             "private_completed": 0,
         }
 
-    visible: list[dict] = []
-    private_committed = 0
-    private_completed = 0
-    for goal in goals:
+    hidden = {"committed": 0, "completed": 0}
+
+    def redact(goal: Goal) -> dict | None:
+        # A private goal hides its whole subtree and counts once; a private
+        # step or sub-step under a visible parent counts on its own.
         if is_private(goal):
-            private_committed += 1
-            private_completed += 1 if goal.completed_at else 0
-            continue
+            hidden["committed"] += 1
+            hidden["completed"] += 1 if goal.completed_at else 0
+            return None
         payload = goal_detail(goal)
-        children = []
-        for child in sorted_children(goal):
-            if is_private(child):
-                private_committed += 1
-                private_completed += 1 if child.completed_at else 0
-                continue
-            children.append(goal_detail(child))
-        payload["children"] = children
-        visible.append(payload)
+        payload["children"] = [
+            row for child in sorted_children(goal) if (row := redact(child)) is not None
+        ]
+        return payload
+
+    visible = [row for goal in goals if (row := redact(goal)) is not None]
     return {
         "goals": visible,
-        "private_committed": private_committed,
-        "private_completed": private_completed,
+        "private_committed": hidden["committed"],
+        "private_completed": hidden["completed"],
     }
 
 

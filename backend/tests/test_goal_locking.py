@@ -210,6 +210,75 @@ def test_adding_a_step_keeps_a_locked_parents_checkmark_honest(
     assert refreshed["progress_percentage"] == 50.0
 
 
+def test_sub_steps_can_be_added_to_an_untouched_locked_step(
+    team_setup, make_goal, db
+) -> None:
+    """Splitting a step that has no progress yet only adds to the commitment."""
+    milestone = {
+        "tracking_type": "MILESTONE",
+        "baseline_value": None,
+        "target_value": None,
+        "current_value": None,
+        "target_direction": None,
+    }
+    parent = make_goal(team_setup.admin_participant, **milestone)
+    step = make_goal(
+        team_setup.admin_participant, parent_goal_id=parent.id, **milestone
+    )
+    participant = db.get(ChallengeParticipant, team_setup.admin_participant.id)
+    participant.goals_locked_at = participant.goals_due_at
+    db.commit()
+
+    response = team_setup.admin_client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PHYSICAL",
+            "title": "Sub-step",
+            "tracking_type": "MILESTONE",
+            "parent_goal_id": str(step.id),
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["locked_at"] is not None
+
+
+def test_a_first_sub_step_is_refused_on_a_completed_locked_step(
+    team_setup, make_goal, db
+) -> None:
+    milestone = {
+        "tracking_type": "MILESTONE",
+        "baseline_value": None,
+        "target_value": None,
+        "current_value": None,
+        "target_direction": None,
+    }
+    parent = make_goal(team_setup.admin_participant, **milestone)
+    step = make_goal(
+        team_setup.admin_participant, parent_goal_id=parent.id, **milestone
+    )
+    team_setup.admin_client.post(
+        f"/api/v1/goals/{step.id}/progress",
+        json={"entry_date": "2026-08-14", "completed": True},
+    )
+    participant = db.get(ChallengeParticipant, team_setup.admin_participant.id)
+    participant.goals_locked_at = participant.goals_due_at
+    db.commit()
+
+    response = team_setup.admin_client.post(
+        "/api/v1/me/goals",
+        json={
+            "category": "PHYSICAL",
+            "title": "Late sub-step",
+            "tracking_type": "MILESTONE",
+            "parent_goal_id": str(step.id),
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "GOALS_LOCKED"
+
+
 def test_goals_cannot_be_added_after_the_challenge_ends(
     team_setup, locked_goal, db
 ) -> None:

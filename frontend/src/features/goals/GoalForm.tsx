@@ -82,7 +82,11 @@ export function GoalForm({
   const trackingType = watch('tracking_type')
   const selectedCategory = watch('category')
   const showNumbers = usesNumericFields(trackingType)
-  const title = goal ? 'Edit goal' : parent ? `Add a step to “${parent.title}”` : 'Add a goal'
+  const title = goal
+    ? 'Edit goal'
+    : parent
+      ? `Add a ${parent.parent_goal_id ? 'sub-step' : 'step'} to “${parent.title}”`
+      : 'Add a goal'
 
   return (
     <Modal eyebrow={goal ? 'Your commitment' : 'New commitment'} title={title} onClose={onClose}>

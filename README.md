@@ -80,10 +80,11 @@ the commitment, the daily record, and the reckoning at the end.
   your percentage is measured over. Optional goals are tracked and shown but
   left out of that number, including when they sit alone in a category: the
   category still appears, the headline does not drop.
-- **Steps** — optional one-level sub-goals. You check in on the steps; the
-  parent averages its required children, the same rule categories use. Use
-  this when the work is a few named finish-lines, not when you already have a
-  running total. Drag them into the
+- **Steps** — optional sub-goals, up to two levels deep: a goal can have
+  steps, and a step can have sub-steps (the **+** on a step's row). You check
+  in on the lowest level; each parent averages its required children, the same
+  rule categories use. Use this when the work is a few named finish-lines, not
+  when you already have a running total. Drag steps or sub-steps into the
   order you want; that order is what check-in uses, and it can still change
   after the lock.
 - In-app **?** buttons next to tracking method and Add step explain the above.
@@ -127,8 +128,8 @@ A remote MCP endpoint at `/mcp` so a member can connect their own LLM.
 - Add goals and sub-steps any time until the challenge ends, even after your
   commitment locks — adding only strengthens it. Editing wording or targets is
   only possible before the lock; once locked, the model can change just
-  visibility and ordering (including the order of steps under a goal), and can
-  never remove a goal.
+  visibility and ordering (including the order of steps under a goal and
+  sub-steps under a step), and can never remove a goal.
 - Log today's check-in.
 - Revoke a token from Settings if it leaks (OAuth connections appear as
   “ChatGPT”). Connecting shares that member's view of the team with their LLM

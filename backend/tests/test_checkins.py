@@ -420,3 +420,50 @@ def test_a_future_date_cannot_be_written_before_kick_off(
         "/api/v1/me/checkins", json={"date": start, "note": "Too early"}
     )
     assert response.status_code == 422
+
+
+def test_finishing_every_sub_step_completes_the_step_and_the_goal(
+    team_setup, today, make_goal, db
+) -> None:
+    milestone = {
+        "tracking_type": "MILESTONE",
+        "baseline_value": None,
+        "target_value": None,
+        "current_value": None,
+        "target_direction": None,
+    }
+    goal = make_goal(team_setup.admin_participant, title="Revise Juz 28", **milestone)
+    step = make_goal(
+        team_setup.admin_participant,
+        parent_goal_id=goal.id,
+        title="Al-Mujadila to At-Tahrim",
+        **milestone,
+    )
+    first = make_goal(
+        team_setup.admin_participant, parent_goal_id=step.id, title="Al-Mujadila"
+    )
+    second = make_goal(
+        team_setup.admin_participant, parent_goal_id=step.id, title="Al-Hashr"
+    )
+
+    response = team_setup.admin_client.post(
+        "/api/v1/me/checkins",
+        json={"date": today, "updates": [{"goal_id": str(step.id), "completed": True}]},
+    )
+    assert response.status_code == 422
+
+    saved = team_setup.admin_client.post(
+        "/api/v1/me/checkins",
+        json={
+            "date": today,
+            "updates": [
+                {"goal_id": str(first.id), "numeric_value": "120"},
+                {"goal_id": str(second.id), "numeric_value": "120"},
+            ],
+        },
+    )
+    assert saved.status_code == 200, saved.text
+
+    db.expire_all()
+    assert db.get(Goal, step.id).completed_at is not None
+    assert db.get(Goal, goal.id).completed_at is not None

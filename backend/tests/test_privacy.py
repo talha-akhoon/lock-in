@@ -159,6 +159,48 @@ def test_a_private_sub_goal_is_redacted_from_a_visible_parent(
     assert profile["private_committed"] == 1
 
 
+def test_a_private_sub_step_is_redacted_from_a_visible_step(
+    team_setup, make_goal
+) -> None:
+    milestone = {
+        "category": "CAREER",
+        "tracking_type": "MILESTONE",
+        "baseline_value": None,
+        "target_value": None,
+        "current_value": None,
+        "target_direction": None,
+    }
+    parent = make_goal(
+        team_setup.member_participant, title="Interview ready", **milestone
+    )
+    step = make_goal(
+        team_setup.member_participant,
+        parent_goal_id=parent.id,
+        title="Public step",
+        **milestone,
+    )
+    make_goal(
+        team_setup.member_participant,
+        parent_goal_id=step.id,
+        title=SECRET,
+        visibility=GoalVisibility.PRIVATE,
+    )
+    make_goal(
+        team_setup.member_participant,
+        parent_goal_id=step.id,
+        title="Public sub-step",
+    )
+
+    profile = team_setup.admin_client.get(
+        f"/api/v1/teams/{team_setup.team.id}/members/{team_setup.member.id}"
+    ).json()
+
+    sub_steps = profile["goals"][0]["children"][0]["children"]
+    assert [row["title"] for row in sub_steps] == ["Public sub-step"]
+    assert profile["private_committed"] == 1
+    assert SECRET not in str(profile)
+
+
 def test_mcp_teammate_tools_hide_private_titles(
     team_setup, private_goal, public_goal, db
 ) -> None:

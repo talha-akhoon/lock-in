@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { makeGoal } from '../../test/factories'
-import { dropIndexForY, insertIdAt, movedStepIds, orderedChildren } from './stepOrder'
+import {
+  dropIndexForY,
+  insertIdAt,
+  movedStepIds,
+  orderedChildren,
+  reorderedInTree,
+} from './stepOrder'
 
 describe('movedStepIds', () => {
   it('swaps a step with its neighbour', () => {
@@ -46,5 +52,37 @@ describe('orderedChildren', () => {
       'Finish the UI',
       'Finish the API',
     ])
+  })
+})
+
+describe('reorderedInTree', () => {
+  it('reorders the sub-steps of a step nested under the goal', () => {
+    const first = makeGoal({ title: 'Write the endpoints' })
+    const second = makeGoal({ title: 'Write the tests' })
+    const step = makeGoal({ title: 'Finish the API', children: [first, second] })
+    const sibling = makeGoal({ title: 'Finish the UI' })
+    const goal = makeGoal({ title: 'Ship the app', children: [step, sibling] })
+
+    const result = reorderedInTree(goal, step.id, [second.id, first.id])
+
+    expect(result.children.map((child) => child.title)).toEqual(['Finish the API', 'Finish the UI'])
+    expect(result.children[0]?.children.map((child) => child.title)).toEqual([
+      'Write the tests',
+      'Write the endpoints',
+    ])
+    expect(result.children[1]).toBe(sibling)
+  })
+
+  it('reorders the goal itself when it is the parent', () => {
+    const first = makeGoal({ title: 'Finish the API' })
+    const second = makeGoal({ title: 'Finish the UI' })
+    const goal = makeGoal({ title: 'Ship the app', children: [first, second] })
+
+    expect(reorderedInTree(goal, goal.id, [second.id, first.id]).children).toEqual([second, first])
+  })
+
+  it('leaves an unrelated goal untouched', () => {
+    const goal = makeGoal({ title: 'Read more', children: [] })
+    expect(reorderedInTree(goal, 'missing', [])).toBe(goal)
   })
 })

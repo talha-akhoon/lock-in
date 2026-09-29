@@ -156,33 +156,15 @@ export function CheckInPage() {
                 <h2>
                   <Icon /> {CATEGORY_META[category].label}
                 </h2>
-                {items.map((goal) =>
-                  goal.children.length ? (
-                    <div className="checkin-parent" key={goal.id}>
-                      <div className="checkin-parent-head">
-                        <b>{goal.title}</b>
-                        <Progress value={goal.progress_percentage} tone="muted" />
-                      </div>
-                      {goal.children.map((child) => (
-                        <CheckinRow
-                          key={child.id}
-                          goal={child}
-                          value={state[child.id]}
-                          baseline={preStart}
-                          onChange={(value) => setState((prev) => ({ ...prev, [child.id]: value }))}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <CheckinRow
-                      key={goal.id}
-                      goal={goal}
-                      value={state[goal.id]}
-                      baseline={preStart}
-                      onChange={(value) => setState((prev) => ({ ...prev, [goal.id]: value }))}
-                    />
-                  ),
-                )}
+                {items.map((goal) => (
+                  <CheckinGoal
+                    key={goal.id}
+                    goal={goal}
+                    state={state}
+                    baseline={preStart}
+                    onChange={(id, value) => setState((prev) => ({ ...prev, [id]: value }))}
+                  />
+                ))}
               </section>
             )
           })}
@@ -210,6 +192,47 @@ export function CheckInPage() {
         </form>
       )}
     </>
+  )
+}
+
+/** A leaf gets a control; a goal or step with children groups them under its title. */
+function CheckinGoal({
+  goal,
+  state,
+  baseline,
+  onChange,
+}: {
+  goal: Goal
+  state: CheckinFormState
+  baseline?: boolean
+  onChange: (id: string, value: string | boolean) => void
+}) {
+  if (!goal.children.length) {
+    return (
+      <CheckinRow
+        goal={goal}
+        value={state[goal.id]}
+        baseline={baseline}
+        onChange={(value) => onChange(goal.id, value)}
+      />
+    )
+  }
+  return (
+    <div className="checkin-parent">
+      <div className="checkin-parent-head">
+        <b>{goal.title}</b>
+        <Progress value={goal.progress_percentage} tone="muted" />
+      </div>
+      {goal.children.map((child) => (
+        <CheckinGoal
+          key={child.id}
+          goal={child}
+          state={state}
+          baseline={baseline}
+          onChange={onChange}
+        />
+      ))}
+    </div>
   )
 }
 

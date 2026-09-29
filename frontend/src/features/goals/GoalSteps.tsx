@@ -1,4 +1,4 @@
-import { GripVertical, LockKeyhole, Trash2 } from 'lucide-react'
+import { GripVertical, LockKeyhole, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Progress } from '../../components/primitives'
@@ -12,16 +12,24 @@ export function GoalSteps({
   parent,
   canDelete,
   onDelete,
+  onAddChild,
   linkTitles,
+  readOnly,
 }: {
   parent: Goal
   canDelete?: boolean
   onDelete?: (goal: Goal) => void
+  // Offered on a goal's steps only: a sub-step cannot hold steps of its own.
+  onAddChild?: (goal: Goal) => void
   linkTitles?: boolean
+  // Teammate profile (and any other viewer) must not get drag handles.
+  readOnly?: boolean
 }) {
   const reorder = useReorderGoalSteps()
   const steps = parent.children
-  const canReorder = steps.length > 1
+  const canReorder = steps.length > 1 && !readOnly
+  const canAddSubStep = Boolean(onAddChild) && !parent.parent_goal_id && !readOnly
+  const canRemove = Boolean(canDelete && onDelete) && !readOnly
   const [dragId, setDragId] = useState<string | null>(null)
   const [previewIds, setPreviewIds] = useState<string[] | null>(null)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
@@ -104,50 +112,74 @@ export function GoalSteps({
   return (
     <>
       {visible.map((child) => (
-        <div
-          className={[
-            'subgoal',
-            canReorder ? 'reorderable' : '',
-            dragId === child.id ? 'dragging' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          key={child.id}
-          ref={(node) => {
-            if (node) rowRefs.current.set(child.id, node)
-            else rowRefs.current.delete(child.id)
-          }}
-        >
-          {canReorder && (
-            <button
-              type="button"
-              className="subgoal-handle"
-              aria-label={`Reorder ${child.title}`}
-              aria-keyshortcuts="ArrowUp ArrowDown"
-              aria-grabbed={dragId === child.id}
-              disabled={reorder.isPending}
-              onPointerDown={(event) => startDrag(event, child.id)}
-              onKeyDown={(event) => onHandleKey(event, child)}
-            >
-              <GripVertical />
-            </button>
-          )}
-          <span>
-            {child.visibility === 'PRIVATE' && <LockKeyhole aria-label="Private step" />}{' '}
-            {linkTitles ? <Link to={`/goals/${child.id}`}>{child.title}</Link> : child.title}
-          </span>
-          <Progress value={child.progress_percentage} tone="muted" />
-          <b>{Math.round(child.progress_percentage)}%</b>
-          {canDelete && onDelete && (
-            <div className="subgoal-actions">
+        <div className="subgoal-group" key={child.id}>
+          <div
+            className={[
+              'subgoal',
+              canReorder ? 'reorderable' : '',
+              dragId === child.id ? 'dragging' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            ref={(node) => {
+              if (node) rowRefs.current.set(child.id, node)
+              else rowRefs.current.delete(child.id)
+            }}
+          >
+            {canReorder && (
               <button
                 type="button"
-                className="icon-button tiny"
-                onClick={() => onDelete(child)}
-                aria-label={`Delete ${child.title}`}
+                className="subgoal-handle"
+                aria-label={`Reorder ${child.title}`}
+                aria-keyshortcuts="ArrowUp ArrowDown"
+                aria-grabbed={dragId === child.id}
+                disabled={reorder.isPending}
+                onPointerDown={(event) => startDrag(event, child.id)}
+                onKeyDown={(event) => onHandleKey(event, child)}
               >
-                <Trash2 />
+                <GripVertical />
               </button>
+            )}
+            <span>
+              {child.visibility === 'PRIVATE' && <LockKeyhole aria-label="Private step" />}{' '}
+              {linkTitles ? <Link to={`/goals/${child.id}`}>{child.title}</Link> : child.title}
+            </span>
+            <Progress value={child.progress_percentage} tone="muted" />
+            <b>{Math.round(child.progress_percentage)}%</b>
+            {(canAddSubStep || canRemove) && (
+              <div className="subgoal-actions">
+                {canAddSubStep && onAddChild && (
+                  <button
+                    type="button"
+                    className="icon-button tiny"
+                    onClick={() => onAddChild(child)}
+                    aria-label={`Add a sub-step to ${child.title}`}
+                  >
+                    <Plus />
+                  </button>
+                )}
+                {canRemove && onDelete && (
+                  <button
+                    type="button"
+                    className="icon-button tiny"
+                    onClick={() => onDelete(child)}
+                    aria-label={`Delete ${child.title}`}
+                  >
+                    <Trash2 />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          {child.children.length > 0 && (
+            <div className="subgoal-children">
+              <GoalSteps
+                parent={child}
+                canDelete={canDelete}
+                onDelete={onDelete}
+                linkTitles={linkTitles}
+                readOnly={readOnly}
+              />
             </div>
           )}
         </div>

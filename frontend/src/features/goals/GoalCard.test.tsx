@@ -53,6 +53,40 @@ describe('GoalCard add-step gating', () => {
   })
 })
 
+describe('GoalCard sub-steps', () => {
+  function splitStep() {
+    const subStep = makeGoal({ title: 'Al-Mujadila', parent_goal_id: 'step' })
+    const step = makeGoal({ id: 'step', title: 'Juz 28', parent_goal_id: 'goal', children: [subStep] })
+    return makeGoal({ id: 'goal', title: 'Revise 5 Juz', children: [step] })
+  }
+
+  it('shows a step’s sub-steps nested under it', () => {
+    renderWithProviders(<GoalCard goal={splitStep()} />)
+
+    expect(screen.getByText('Juz 28')).toBeInTheDocument()
+    expect(screen.getByText('Al-Mujadila').closest('.subgoal-children')).not.toBeNull()
+  })
+
+  it('offers a sub-step on a step but not on a sub-step', async () => {
+    const added: string[] = []
+    renderWithProviders(
+      <GoalCard goal={splitStep()} canAddChild onAddChild={(goal) => added.push(goal.title)} />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: /add a sub-step to juz 28/i }))
+    expect(added).toEqual(['Juz 28'])
+    expect(
+      screen.queryByRole('button', { name: /add a sub-step to al-mujadila/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides the sub-step button once adding is closed', () => {
+    renderWithProviders(<GoalCard goal={splitStep()} canAddChild={false} onAddChild={() => {}} />)
+
+    expect(screen.queryByRole('button', { name: /add a sub-step/i })).not.toBeInTheDocument()
+  })
+})
+
 describe('GoalCard step reorder', () => {
   it('offers a drag handle when there are two or more steps', () => {
     renderWithProviders(<GoalCard goal={twoSteps()} />)
@@ -95,6 +129,43 @@ describe('GoalCard step reorder', () => {
     )
     expect(fetchMock.sent(`PATCH /goals/${parent.id}/children/order`)[0].body).toEqual({
       ordered_ids: [parent.children[1].id, parent.children[0].id],
+    })
+  })
+
+  it('drops against the step row, not the nested sub-steps block', async () => {
+    const first = makeGoal({
+      title: 'Finish the API',
+      children: [makeGoal({ title: 'Write the endpoints' }), makeGoal({ title: 'Write the tests' })],
+    })
+    const second = makeGoal({ title: 'Finish the UI' })
+    const parent = makeGoal({ title: 'Ship the app', children: [first, second] })
+    const fetchMock = mockFetch({
+      [`PATCH /goals/${parent.id}/children/order`]: parent,
+    })
+    renderWithProviders(<GoalCard goal={parent} />)
+
+    const handle = screen.getByRole('button', { name: /reorder finish the api/i })
+    const secondHandle = screen.getByRole('button', { name: /reorder finish the ui/i })
+    const firstGroup = handle.closest('.subgoal-group')
+    const secondGroup = secondHandle.closest('.subgoal-group')
+    const firstRow = handle.closest('.subgoal')
+    const secondRow = secondHandle.closest('.subgoal')
+    expect(firstGroup && secondGroup && firstRow && secondRow).toBeTruthy()
+    // A tall group would swallow the neighbour if drop used it; the row must win.
+    stubRect(firstGroup!, 0, 200)
+    stubRect(secondGroup!, 200, 40)
+    stubRect(firstRow!, 0, 40)
+    stubRect(secondRow!, 40, 40)
+
+    fireEvent.pointerDown(handle, { pointerId: 1, clientY: 20, button: 0 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientY: 70 })
+    fireEvent.pointerUp(window, { pointerId: 1, clientY: 70 })
+
+    await waitFor(() =>
+      expect(fetchMock.sent(`PATCH /goals/${parent.id}/children/order`)).toHaveLength(1),
+    )
+    expect(fetchMock.sent(`PATCH /goals/${parent.id}/children/order`)[0].body).toEqual({
+      ordered_ids: [second.id, first.id],
     })
   })
 

@@ -51,9 +51,10 @@ confirm with them the title, the tracking type and starting point, whether the
 goal is required or optional, and whether it is TEAM-visible or PRIVATE.
 required defaults to true, and a required add after the lock enlarges the
 forfeit set — call that out explicitly when they are locked. Pass
-parent_goal_id to add a sub-goal (step); but do not add the *first* step to a
-goal that is already tracked with its own progress — it would replace that
-progress with the steps' average, and once locked the server refuses it.
+parent_goal_id to add a sub-goal (step); a step can hold sub-steps of its own,
+two levels deep at most. Do not add the *first* step to a goal or step that is
+already tracked with its own progress — it would replace that progress with the
+steps' average, and once locked the server refuses it.
 
 Use update_goal to change the caller's own goal; pass only the fields you
 want to change. Confirm the change first, the same way as add_goal: if you are
@@ -62,8 +63,8 @@ explicitly, and confirm the title, tracking type or starting point when those
 are what you are changing. Once a commitment is locked the wording and targets
 are final — only visibility and ordering can still change, and any other edit
 is rejected. Use reorder_goal_steps to change the display order of steps under
-a parent goal; that order is what check-in uses, and it still works after the
-lock.
+a parent goal or sub-steps under a step; that order is what check-in uses, and
+it still works after the lock.
 """
 
 
@@ -179,8 +180,8 @@ def add_goal(
       MANUAL     a 0-100 manual_progress_percentage you set yourself.
     visibility TEAM (default) or PRIVATE. required defaults to true; required
     goals are the ones scored for the end-of-challenge forfeit. Pass
-    parent_goal_id to nest one level under an existing goal (it inherits the
-    parent's category).
+    parent_goal_id to nest under a goal or under one of its steps — two levels
+    deep at most (it inherits the parent's category).
     """
     try:
         payload = GoalCreate(
@@ -266,10 +267,10 @@ def update_goal(
 
 @mcp.tool()
 def reorder_goal_steps(goal_id: str, ordered_ids: list[str]) -> dict:
-    """Set the display order of the steps under a parent goal. Pass the parent
-    goal_id (from get_my_goals) and every child id exactly once, in the order
-    they should appear on the goal and in check-in. Display order can change
-    even after the commitment locks.
+    """Set the display order of the steps under a parent goal, or the sub-steps
+    under a step. Pass the parent goal_id (from get_my_goals) and every child
+    id exactly once, in the order they should appear on the goal and in
+    check-in. Display order can change even after the commitment locks.
     """
     try:
         parsed_id = UUID(goal_id)

@@ -50,3 +50,13 @@ export function orderedChildren(goal: Goal, orderedIds: string[]): Goal {
     }),
   }
 }
+
+/** Apply `orderedChildren` to whichever goal in the tree is `parentId`: a goal, a step, or deeper. */
+export function reorderedInTree(goal: Goal, parentId: string, orderedIds: string[]): Goal {
+  if (goal.id === parentId) return orderedChildren(goal, orderedIds)
+  if (goal.children.length === 0) return goal
+  return {
+    ...goal,
+    children: goal.children.map((child) => reorderedInTree(child, parentId, orderedIds)),
+  }
+}
