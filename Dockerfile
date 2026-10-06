@@ -5,7 +5,9 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
 ARG VITE_GOOGLE_CLIENT_ID
+ARG VITE_APP_VERSION
 ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+ENV VITE_APP_VERSION=${VITE_APP_VERSION}
 RUN npm run build
 
 FROM python:3.12-slim AS runtime

@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { UpdateBanner } from './components/UpdateBanner'
 import { AppShell } from './layouts/AppShell'
 import { RequireAdmin, RequireAuth, RequireTeam } from './layouts/guards'
 import { ActivityPage } from './pages/ActivityPage'
@@ -68,6 +69,7 @@ export function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <UpdateBanner />
       <AppRoutes />
     </BrowserRouter>
   )
