@@ -84,9 +84,14 @@ export function ErrorState({
 export function Loading({ label = 'Loading' }: { label?: string }) {
   return (
     <div className="loading" role="status" aria-live="polite">
-      <span />
-      <span />
-      <span />
+      <div className="brand">
+        <span>LI</span> LockIn
+      </div>
+      <div className="loading-dots" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
       <span className="sr-only">{label}</span>
     </div>
   )

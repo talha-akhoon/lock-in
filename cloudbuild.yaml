@@ -4,6 +4,8 @@ steps:
       - build
       - --build-arg
       - VITE_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}
+      - --build-arg
+      - VITE_APP_VERSION=$COMMIT_SHA
       - --tag
       - ${_IMAGE}
       - .

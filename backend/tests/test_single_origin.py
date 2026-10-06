@@ -84,6 +84,7 @@ def test_built_public_files_are_served_as_themselves(tmp_path, monkeypatch) -> N
 
     (tmp_path / "sw.js").write_text("// lockin-sw\nself.skipWaiting()\n")
     (tmp_path / "manifest.json").write_text('{"short_name":"LockIn"}')
+    (tmp_path / "version.json").write_text('{"version":"abc123"}')
     (tmp_path / "index.html").write_text('<div id="root"></div>')
     monkeypatch.setenv("FRONTEND_DIST", str(tmp_path))
     config.get_settings.cache_clear()
@@ -103,6 +104,11 @@ def test_built_public_files_are_served_as_themselves(tmp_path, monkeypatch) -> N
             manifest = client.get("/manifest.json")
             assert manifest.status_code == 200
             assert manifest.json()["short_name"] == "LockIn"
+
+            version = client.get("/version.json")
+            assert version.status_code == 200
+            assert version.json()["version"] == "abc123"
+            assert version.headers.get("cache-control") == "no-cache"
 
             shell = client.get("/dashboard")
             assert shell.status_code == 200

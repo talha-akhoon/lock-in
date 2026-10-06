@@ -102,8 +102,9 @@ def spa(path: str) -> FileResponse:
     built = _dist_file(path)
     if built is not None:
         headers = {}
-        if built.name == "sw.js":
+        if built.name in {"sw.js", "version.json"}:
             headers["Cache-Control"] = "no-cache"
+        if built.name == "sw.js":
             headers["Service-Worker-Allowed"] = "/"
         media = _DIST_MEDIA.get(built.suffix.lower())
         return FileResponse(built, media_type=media, headers=headers)

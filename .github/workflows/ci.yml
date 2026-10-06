@@ -97,6 +97,8 @@ jobs:
           push: false
           load: true
           tags: lockin:ci
+          build-args: |
+            VITE_APP_VERSION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -129,6 +131,8 @@ jobs:
           curl -fsS http://127.0.0.1:8080/manifest.json | grep -q '"short_name"'
           curl -fsS http://127.0.0.1:8080/sw.js | grep -q 'addEventListener'
           curl -sI http://127.0.0.1:8080/sw.js | grep -qi 'content-type:.*javascript'
+          curl -fsS http://127.0.0.1:8080/version.json | grep -q '"version"'
+          curl -sI http://127.0.0.1:8080/version.json | grep -qi 'cache-control:.*no-cache'
 
           # Client-side routes get the app shell; anything else must say no.
           expect /goals/some-id 200
@@ -183,6 +187,7 @@ jobs:
             ${{ env.IMAGE }}:latest
           build-args: |
             VITE_GOOGLE_CLIENT_ID=${{ env.GOOGLE_CLIENT_ID }}
+            VITE_APP_VERSION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

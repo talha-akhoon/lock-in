@@ -100,10 +100,12 @@ the commitment, the daily record, and the reckoning at the end.
 - Per-member heatmap and streak on the profile.
 - Team dashboard with everyone's progress (private titles redacted).
 - Activity feed of recent updates.
-- **Install as an app** — add LockIn to the Home Screen or desktop. On a
-  phone the main screens sit on a tab bar (dashboard, check-in, goals, team)
-  so check-in is one tap; Activity, Settings and Admin are under More. Settings
-  turns on push so teammate logs, leaderboard moves, missed check-ins,
+- **Install as an app** — add LockIn to the Home Screen or desktop. Opening
+  the installed app shows a branded loading screen until the UI is ready. After
+  a new deploy, a banner asks you to refresh so you pick up the latest version.
+  On a phone the main screens sit on a tab bar (dashboard, check-in, goals,
+  team) so check-in is one tap; Activity, Settings and Admin are under More.
+  Settings turns on push so teammate logs, leaderboard moves, missed check-ins,
   streaks, pace and deadline reminders reach you when the tab is closed.
   Mute individual types there: off means no bell and no push for that event.
   iPhone only delivers
@@ -252,10 +254,12 @@ picks up `VITE_GOOGLE_CLIENT_ID`.
 ### 5. Production-shaped image (optional)
 
 The root `Dockerfile` is what you would deploy: one container, built SPA + API,
-non-root, docs off.
+non-root, docs off. Pass `VITE_APP_VERSION` (CI uses the git SHA) so the
+image writes `/version.json` and the running app can prompt a refresh after
+the next deploy.
 
 ```bash
-docker build -t lockin:local .
+docker build -t lockin:local --build-arg VITE_APP_VERSION="$(git rev-parse HEAD)" .
 docker run --rm -p 8081:8080 --network lockin_default \
   -e DATABASE_URL=postgresql+psycopg://lockin:lockin@postgres:5432/lockin \
   -e SECRET_KEY=dev-only \
@@ -318,10 +322,11 @@ frontend/src/
   pages/                  one file per screen, including /admin/*
   layouts/                signed-in chrome: desktop sidebar, phone tab bar
   features/               goal forms, check-in payloads, help copy
-  components/             primitives, heatmap, countdown, notifications, InfoTip, PWA settings, mute toggles
+  components/             primitives, heatmap, countdown, notifications, InfoTip, PWA settings, mute toggles, update banner
   hooks/queries.ts        typed TanStack Query hooks
-  lib/                    API client, types, formatting, category metadata, Web Push
+  lib/                    API client, types, formatting, category metadata, Web Push, deploy version check
 frontend/public/          web app manifest, service worker, icons
+                          (version.json is generated at build, not committed)
 ```
 
 **Privacy:** a teammate viewing a `PRIVATE` goal gets counts only. Every
