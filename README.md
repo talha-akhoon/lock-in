@@ -83,7 +83,10 @@ the commitment, the daily record, and the reckoning at the end.
 - **Steps** — optional sub-goals, up to two levels deep: a goal can have
   steps, and a step can have sub-steps (the **+** on a step's row). You check
   in on the lowest level; each parent averages its required children, the same
-  rule categories use. Use this when the work is a few named finish-lines, not
+  rule categories use. Optional steps stay out of that average while a required
+  step remains. If every step is optional, the parent averages those, so
+  unfinished optional steps do not show the goal as finished. Use this when the
+  work is a few named finish-lines, not
   when you already have a running total. Drag steps or sub-steps into the
   order you want; that order is what check-in uses, and it can still change
   after the lock.

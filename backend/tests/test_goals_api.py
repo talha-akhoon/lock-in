@@ -286,6 +286,72 @@ def test_a_parent_reports_the_mean_of_its_required_children(team_setup) -> None:
     assert tree[0]["progress_percentage"] == 50.0
 
 
+def test_optional_steps_at_zero_do_not_show_the_parent_as_finished(
+    team_setup,
+) -> None:
+    """A teammate looking at the profile must see the steps' real average.
+
+    Converting every step from required to optional used to force the parent
+    to 100% even while those steps sat at 0%.
+    """
+    client = team_setup.admin_client
+    parent = client.post("/api/v1/me/goals", json=MILESTONE).json()
+    first = client.post(
+        "/api/v1/me/goals", json={**NUMERIC, "parent_goal_id": parent["id"]}
+    ).json()
+    second = client.post(
+        "/api/v1/me/goals",
+        json={**NUMERIC, "title": "Squat 120kg", "parent_goal_id": parent["id"]},
+    ).json()
+
+    for step_id in (first["id"], second["id"]):
+        response = client.patch(f"/api/v1/goals/{step_id}", json={"required": False})
+        assert response.status_code == 200, response.text
+
+    profile = team_setup.member_client.get(
+        f"/api/v1/teams/{team_setup.team.id}/members/{team_setup.admin.id}"
+    ).json()
+    goal = profile["goals"][0]
+    assert goal["progress_percentage"] == 0.0
+    assert [child["progress_percentage"] for child in goal["children"]] == [0.0, 0.0]
+    assert goal["completed_at"] is None
+
+
+def test_flipping_the_last_required_step_to_optional_reopens_the_parent(
+    team_setup,
+) -> None:
+    """A parent marked done on its required steps must drop once those steps
+    no longer count and an unfinished optional step is all that remains."""
+    client = team_setup.admin_client
+    parent = client.post("/api/v1/me/goals", json=MILESTONE).json()
+    done = client.post(
+        "/api/v1/me/goals", json={**NUMERIC, "parent_goal_id": parent["id"]}
+    ).json()
+    client.post(
+        "/api/v1/me/goals",
+        json={
+            **NUMERIC,
+            "title": "Squat 120kg",
+            "parent_goal_id": parent["id"],
+            "required": False,
+        },
+    )
+    client.post(
+        f"/api/v1/goals/{done['id']}/progress",
+        json={"entry_date": "2026-08-14", "numeric_value": "120"},
+    )
+    before = client.get("/api/v1/me/goals").json()["goals"][0]
+    assert before["progress_percentage"] == 100.0
+    assert before["completed_at"] is not None
+
+    response = client.patch(f"/api/v1/goals/{done['id']}", json={"required": False})
+    assert response.status_code == 200, response.text
+
+    after = client.get("/api/v1/me/goals").json()["goals"][0]
+    assert after["progress_percentage"] == 50.0
+    assert after["completed_at"] is None
+
+
 def test_progress_history_is_returned_newest_first(team_setup, make_goal) -> None:
     goal = make_goal(team_setup.admin_participant)
     for day, value in (("2026-08-12", "95"), ("2026-08-13", "100")):
