@@ -95,6 +95,50 @@ def test_parent_averages_required_children_only() -> None:
     assert calculate_goal_progress(parent) == 75
 
 
+def test_all_optional_children_do_not_finish_the_parent() -> None:
+    """Switching every step to optional must not paint the parent as done.
+
+    The parent's own required flag is irrelevant here: a required parent of
+    unfinished optional steps, and an optional parent of the same steps, both
+    sit at the mean of those steps.
+    """
+    children = [
+        numeric_goal(current_value=Decimal(90), required=False),
+        numeric_goal(current_value=Decimal(90), required=False),
+    ]
+    required_parent = Goal(
+        title="Interview ready",
+        category="CAREER",
+        tracking_type=TrackingType.MILESTONE,
+        required=True,
+    )
+    required_parent.children = children
+    assert calculate_goal_progress(required_parent) == 0
+
+    optional_parent = Goal(
+        title="Interview ready",
+        category="CAREER",
+        tracking_type=TrackingType.MILESTONE,
+        required=False,
+    )
+    optional_parent.children = children
+    assert calculate_goal_progress(optional_parent) == 0
+
+
+def test_all_optional_children_are_averaged() -> None:
+    parent = Goal(
+        title="Interview ready",
+        category="CAREER",
+        tracking_type=TrackingType.MILESTONE,
+        required=True,
+    )
+    parent.children = [
+        numeric_goal(current_value=Decimal(90), required=False),
+        numeric_goal(current_value=Decimal(120), required=False),
+    ]
+    assert calculate_goal_progress(parent) == 50
+
+
 def test_streak_allows_today_to_be_missing() -> None:
     today = date(2026, 8, 14)
     assert (

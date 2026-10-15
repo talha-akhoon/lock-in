@@ -22,14 +22,15 @@ def scored_goals(goals: list[Goal]) -> list[Goal]:
 def calculate_goal_progress(goal: Goal) -> float:
     """Percentage complete, always clamped to 0..100.
 
-    A parent goal is the mean of its *required* children only; optional
-    sub-goals are upside and must not drag a parent's percentage down.
+    A parent is the mean of its required children. Optional children are
+    upside: they stay out of that mean while a required sibling exists, so
+    taking one on never drags the parent down. When every child is optional,
+    fall back to averaging them — the same rule categories use — so a parent
+    does not read as finished while its steps sit at 0%.
     """
     if goal.children:
-        required = [child for child in goal.children if child.required]
-        if not required:
-            return 100.0
-        return sum(calculate_goal_progress(child) for child in required) / len(required)
+        children = scored_goals(list(goal.children))
+        return sum(calculate_goal_progress(child) for child in children) / len(children)
 
     if goal.completed_at and goal.tracking_type == TrackingType.MILESTONE:
         return 100.0

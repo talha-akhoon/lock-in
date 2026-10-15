@@ -23,7 +23,11 @@ from app.services.clock import (
     local_midnight,
     utcnow,
 )
-from app.services.progress import calculate_goal_progress, goal_is_complete
+from app.services.progress import (
+    calculate_goal_progress,
+    goal_is_complete,
+    scored_goals,
+)
 
 # Editing any of these after the lock would change what was committed to.
 # `visibility` stays mutable (revealing a personal goal changes nothing about
@@ -226,6 +230,11 @@ def update_goal(
     for key, value in changes.items():
         setattr(goal, key, value)
     db.flush()
+    # Required decides which children a parent averages. Flipping a step to
+    # optional can drop that parent back below 100, so its checkmark has to
+    # move with the score the forfeit reads.
+    if "required" in changes and goal.parent_goal_id:
+        cascade_completion(db, goal)
     return goal
 
 
@@ -312,8 +321,11 @@ def cascade_completion(db: Session, goal: Goal) -> None:
     parent = db.get(Goal, goal.parent_goal_id)
     if not parent:
         return
-    required = [child for child in parent.children if child.required]
-    if required and all(goal_is_complete(child) for child in required):
+    # Same set the percentage uses: required children, or every child when
+    # none are required. An all-optional parent finishes only when those
+    # steps do.
+    scored = scored_goals(list(parent.children))
+    if scored and all(goal_is_complete(child) for child in scored):
         parent.completed_at = parent.completed_at or utcnow()
     else:
         parent.completed_at = None
